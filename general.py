@@ -17,8 +17,8 @@
 
 import sqlite3
 import h5py
-import trackpy.vis.pov as pov
-import trackpy.vis.plots as plots
+import lib.pov as pov
+import lib.plots as plots
 
 class cords:
     def __init__(self):
@@ -27,6 +27,23 @@ class cords:
         self.z = None
         self.I = None
         self._ind = 0
+    def __iter__(self):
+        self._ind = 0
+        return self
+    def next(self):
+        if (len(self.x)>self._ind and
+            len(self.y)>self._ind and
+            len(self.z)>self._ind and
+            len(self.I)>self._ind):
+            tmp =  (self.x[self._ind], self.y[self._ind],
+                    self.z[self._ind], self.I[self._ind])
+            self._ind += 1
+            return tmp
+        
+        else:
+            raise StopIteration
+            
+        
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
@@ -55,3 +72,15 @@ def get_xyzI(key,conn,frame):
     return cord
 
     pass
+
+
+def make_gofr_temp_series(sname,conn):
+    conn = open_conn()
+
+
+def make_gofr_2Dv3D(conn):
+    keys = conn.execute("select key from dsets where dtype = 'z'").fetchall()
+    for k in keys:
+        plots.make_2dv3d_plot(k[0],conn,'figures/2Dv3D/%(#)02d.png'%{"#":k[0]})
+        
+    
