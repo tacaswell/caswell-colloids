@@ -74,8 +74,10 @@ def _draw_gofr_hex_lines(ax,r0):
                     xytext=(-1,0),textcoords='offset points')
     
 
+def _get_gofr_group(fname,prefix,comp_num):
+    '''Returns the h5py group that specified '''
+    return  h5py.File(fname,'r')[prefix + "_%(#)07d"%{"#":comp_num}]
     
-
 def make_2dv3d_plot(key,conn,fname = None):
     # add error handling on all of these calls
     
@@ -91,20 +93,15 @@ def make_2dv3d_plot(key,conn,fname = None):
     # get dset name
     (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
-    print "g(r) key: " + str(g_ck)
-    print "g(r)3D key: " + str(g3D_ck)
     print sample_name + " " + str(temp)
-    print g_fname
-    group = h5py.File(g_fname,'r')["gofr_%(#)07d"%{"#":g_ck}]
-    print group.keys()
-
-
-    group3D = h5py.File(g3D_fname,'r')["gofr3D_%(#)07d"%{"#":g3D_ck}]
+    group = _get_gofr_group(g_fname,'gofr',g_ck)
+    group3D = _get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
 
 
     # make plot
     istatus = plt.isinteractive();
-    if istatus:plt.ion()
+    if istatus:plt.ioff()
+    
     dset_names = ['bin_count', 'bin_edges']
     fig = plt.figure()
     ax = fig.add_axes([.1,.1,.8,.8])
@@ -131,8 +128,79 @@ def make_2dv3d_plot(key,conn,fname = None):
         plt.draw()
         plt.ion()
     else:
-        del(fig)
+        close(fig)
         
         
 
 
+def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
+    '''Takes in a sample name and plots all of the g(r) for it '''
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select comps.comp_key,comps.fout,dsets.temp from comps,dsets where comps.dset_key = dsets.key and comps.function='gofr3D' and dsets.sname = ?",(sname,)).fetchall()
+
+    # check interactive plotting and turn it off
+    istatus = plt.isinteractive();
+    print istatus
+    if istatus:plt.ioff()
+
+    leg_hands = []
+    leg_strs = []
+
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+
+    gn_g = []
+    gn_t = []
+    gn_p = []
+    gn_fig = plt.figure()
+    gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
+    
+    for r in res:
+        g = _get_gofr_group(r[1],'gofr3D',r[0])
+        leg_hands.append(ax.plot(g[dset_names[1]],g[dset_names[0]]))
+        leg_strs.append(str(r[2]))
+        try:
+            gn_p.append((float(r[2]),numpy.max(g[dset_names[0]])))
+            # gn_t.append((float(r[2]))
+            # gn_g.append(numpy.max(g[dset_names[0]]))
+        except (ValueError,TypeError ) :
+            gn_p.append((25,numpy.max(g[dset_names[0]])))
+            # gn_t.append(25)
+            # gn_g.append(numpy.max(g[dset_names[0]]))
+            pass
+
+    gn_p.sort(lambda x,y: int(numpy.sign(x[0]-y[0])))
+    for p in gn_p:
+        gn_t.append(p[0])
+        gn_g.append(p[1])
+    print gn_t
+    print gn_g
+    fig.legend(leg_hands,leg_strs)
+    ax.set_title(sname)
+    ax.set_xlabel(r'r [$\mu m$]')
+    ax.set_ylabel(r'G(r)')
+    
+    gn_ax.plot(gn_t,gn_g,'x-')
+    gn_ax.set_title(r'$g_1(T)$')
+    gn_ax.set_xlabel('T')
+    gn_ax.set_ylabel('$g_1$')
+
+
+    if not fnameg == None:
+        fig.savefig(fnameg)
+
+    if not fnamegn == None:
+        gn_fig.savefig(fnamegn)
+
+        
+    if istatus:
+        print "displaying figure"
+        plt.ion()
+        plt.show()
+    else:
+        print "closing figure"
+        plt.close(fig)
+        plt.close(gn_fig)
