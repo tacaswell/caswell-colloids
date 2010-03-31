@@ -46,3 +46,9 @@ def _quad_objects(a,b,c,d):
     """ generator for quads"""
     for i in range(len(a)):
         yield (a[i],b[i],c[i],d[i])
+
+class dbase_error(Exception):
+    def __init__(self,value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
