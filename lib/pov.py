@@ -24,15 +24,7 @@ import sys
 import colorsys
 import sqlite3
 import math
-
-def _triple_objects(a,b,c):
-    for i in range(len(a)):
-        yield (a[i],b[i],c[i])
-def _quad_objects(a,b,c,d):
-    """ generator for quads"""
-    for i in range(len(a)):
-        yield (a[i],b[i],c[i],d[i])
-    
+import util
 
 def _start_scene(pov_file,max_x,max_y,max_z):
     print >>pov_file, """
@@ -75,15 +67,19 @@ def _set_posistion(pov_file, vec,r):
     print >> pov_file, "<"+ str(vec[0])+","+str(vec[1])+","+str(vec[2])+">," + str(r)
 
 
-def make_range_pov(x,y,z,I,range_x,range_y,range_z,out_name):
+def make_range_pov(cord_set,range_x,range_y,range_z,out_name):
 
     pov_file= open(out_name,'w')
 
-    max_I = max(I)
-    _start_scene(pov_file,max(x),max(y),max(z))
-    draw_box(pov_file,(0,max(x)),(0,max(y)),(0,max(z)))
+    max_I = max(cord_set.I)
+    max_z = max(cord_set.z)
+    
+    _start_scene(pov_file,range_x[1],range_y[1],max_z)
+    draw_box(pov_file,range_x,range_y,(0,max_z))
     scale = .95
-    for (xi,yi,zi,Ii) in _quad_objects(x,y,z,I):
+
+
+    for (xi,yi,zi,Ii) in cord_set:
 
         if zi<range_z[1] and zi>range_z[0] and xi <range_x[1] and xi > range_x[0] and yi<range_y[1] and yi >range_x[0]:
             _open_particle(pov_file)
@@ -120,22 +116,17 @@ def draw_box(pov_file,rangex,rangey,rangez):
             texture{pigment{color Green}}
             }"""
 
-def make_z_slices(x,y,z,I,step_sz,base_name):
+def make_z_slices(cord_set,step_sz,base_name):
+    """From a cord_set outputs pov files for z-slices  """
+    print dir(cord_set)
+    print cord_set.__class__
+    max_z = max(cord_set.z)
+    max_y = max(cord_set.y)
+    max_x = max(cord_set.x)
+    print max_z
 
-
-    
-
-    # x = f["/frame000000/x_%(#)07d"%{"#":comp_num}][:]
-    # y = f["/frame000000/y_%(#)07d"%{"#":comp_num}][:]
-    # z = f["/frame000000/z_%(#)07d"%{"#":comp_num}][:]
-    # # get max of ranges
-    # max_z = 15;
-    # # loop over z
-    max_z = max(z)
-    max_y = max(y)
-    max_x = max(x)
-    for zstp in range(0,math.ceil(max_z),step_sz):
+    for zstp in range(0,int(math.ceil(max_z)),step_sz):
         print zstp
-        make_range_pov(x,y,z,I,(0,max_x),(0,max_y),(zstp,zstp+step_sz),base_name + '_%(#)04d'%{"#":(zstp/step_sz)} + '.pov')
+        make_range_pov(cord_set,(0,max_x),(0,max_y),(zstp,zstp+step_sz),base_name + '_%(#)04d'%{"#":(zstp/step_sz)} + '.pov')
         pass
     
