@@ -23,8 +23,18 @@ import matplotlib.pyplot as plt
 import random
 import itertools
 import h5py
-import numpy
+import numpy as np
 import math
+import util
+import itertools
+
+
+class cord_pairs:
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+    def __iter__(self):
+        return itertool.izip(x,y)
 
 # change to take 
 def _plot_file_frame_phi6(f,comp_number,fr_num):
@@ -61,21 +71,21 @@ def _draw_gofr_hex_lines(ax,r0):
     irr_pos = [2*math.sqrt(3),  math.sqrt(28)]
     irr_pos_txt = [r'$2\, \sqrt{3}$',r'$\sqrt{28}$']
     for s in range(2,9):
-        ax.plot(s*r0*numpy.ones(2),[0 ,3],'r')
+        ax.plot(s*r0*np.ones(2),[0 ,3],'r')
         ax.annotate(str(s),xy=(s*r0,2.5),xycoords='data',
                     xytext=(-1,0),textcoords='offset points')
     for s,t in zip(irr_pos,irr_pos_txt):
         ax.annotate(t,xy=(s*r0,2.75),xycoords='data',
                     xytext=(-1,0),textcoords='offset points')
-        ax.plot(s*r0*numpy.ones(2),[0 ,3],'k')
+        ax.plot(s*r0*np.ones(2),[0 ,3],'k')
     for s in range(1,6):
-        ax.plot((1+ s*lin_scale)*2*r0*numpy.ones(2),[0 ,3],'m')
+        ax.plot((1+ s*lin_scale)*2*r0*np.ones(2),[0 ,3],'m')
         ax.annotate(str(s),xy=(2*r0*(1+s*lin_scale),2.25),xycoords='data',
                     xytext=(-1,0),textcoords='offset points')
     
 
 def _get_gofr_group(fname,prefix,comp_num):
-    '''Returns the h5py group that specified '''
+    '''Returns the h5py group that is  specified '''
     return  h5py.File(fname,'r')[prefix + "_%(#)07d"%{"#":comp_num}]
     
 def make_2dv3d_plot(key,conn,fname = None):
@@ -110,8 +120,8 @@ def make_2dv3d_plot(key,conn,fname = None):
     ax.plot(group3D[dset_names[1]],group3D[dset_names[0]])
 
     # finds the location of the maximum, assume to be the first peak
-    d0 = group3D[dset_names[1]][numpy.argmax(group3D[dset_names[0]])]
-    print numpy.argmax(group3D[dset_names[0]])
+    d0 = group3D[dset_names[1]][np.argmax(group3D[dset_names[0]])]
+    print np.argmax(group3D[dset_names[0]])
     print d0
     _draw_gofr_hex_lines(ax,d0/2)
     ax.set_title(sample_name + " temp: " + str(temp))
@@ -125,8 +135,8 @@ def make_2dv3d_plot(key,conn,fname = None):
      
         
     if istatus:
-        plt.draw()
         plt.ion()
+        plt.show()
     else:
         close(fig)
         
@@ -163,16 +173,16 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
         leg_hands.append(ax.plot(g[dset_names[1]],g[dset_names[0]]))
         leg_strs.append(str(r[2]))
         try:
-            gn_p.append((float(r[2]),numpy.max(g[dset_names[0]])))
+            gn_p.append((float(r[2]),np.max(g[dset_names[0]])))
             # gn_t.append((float(r[2]))
-            # gn_g.append(numpy.max(g[dset_names[0]]))
+            # gn_g.append(np.max(g[dset_names[0]]))
         except (ValueError,TypeError ) :
-            gn_p.append((25,numpy.max(g[dset_names[0]])))
+            gn_p.append((25,np.max(g[dset_names[0]])))
             # gn_t.append(25)
-            # gn_g.append(numpy.max(g[dset_names[0]]))
+            # gn_g.append(np.max(g[dset_names[0]]))
             pass
 
-    gn_p.sort(lambda x,y: int(numpy.sign(x[0]-y[0])))
+    gn_p.sort(lambda x,y: int(np.sign(x[0]-y[0])))
     for p in gn_p:
         gn_t.append(p[0])
         gn_g.append(p[1])
@@ -204,3 +214,109 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
         print "closing figure"
         plt.close(fig)
         plt.close(gn_fig)
+
+
+def sofQ(c_pair,Q ):
+    '''computes the Fourier transform of the c_pair passed in at all q in Q.'''
+
+
+    tmp_y = np.hstack((np.flipud(c_pair.y),c_pair.y))-1
+    tmp_x = np.hstack((np.flipud(c_pair.x),c_pair.x))
+    tmp_y = tmp_y*tmp_x
+    tmp_x = np.hstack((np.flipud(-c_pair.x),c_pair.x))
+
+    plt.plot(tmp_x,tmp_y)
+    
+    dx = np.mean(np.diff(c_pair.x))
+    sq = lambda q: abs(dx*(1j/q)*sum(tmp_y*np.exp(1j*tmp_x*q*2*np.pi)))**2
+    S = map(sq,Q)
+       
+    
+    return S
+
+def make_sofq_3D_plot(key,conn,Q):
+    '''From the key plots s(q) as computed from the 3D g(r)'''
+    res = conn.execute("select comp_key from comps where dset_key=? and function='gofr3D'",(key,)).fetchall()
+    if not len(res)==1:
+        raise util.dbase_error("can't find 3D gofr")
+
+    plt.figure()
+    g = _get_gofr(res[0][0],conn)
+
+    S = sofQ(g,Q)
+
+    res2 = conn.execute("select comp_key from comps where dset_key=? and function='gofr'",(key,)).fetchall()
+    if not len(res2)==1:
+        raise util.dbase_error("can't find gofr")
+    
+    g2 = _get_gofr2D(res2[0][0],conn)
+    S2 = sofQ(g2,Q)
+
+
+    istatus = plt.isinteractive();
+    if istatus:plt.ioff()
+
+    # plot s(q)
+    leg_hands = []
+    leg_strs = []
+    
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    leg_hands.append(ax.plot(Q,S))
+    leg_strs.append('3D based')
+    leg_hands.append(ax.plot(Q,S2))
+    leg_strs.append('2D based')
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('S(q)')
+    ax.set_xlabel(r' q [$1/\mu$m]')
+    #ax.set_xlabel(r' qR')
+    ax.set_ylabel('S(q) [arb units]')
+    
+    if istatus:
+        print "displaying figure"
+        plt.show()
+        plt.ion()
+    
+    else:
+        print "closing figure"
+        plt.close(fig)
+        plt.close(gn_fig)
+
+
+
+def _get_gofr(comp_num,conn,gname='gofr3D'):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    numpy array'''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+
+    
+    g = _get_gofr_group(res[0][0],gname,comp_num)
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])
+    return cord_pairs(bins,gofr)
+    
+
+def _get_gofr2D(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    numpy array'''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+
+    
+    g = _get_gofr_group(res[0][0],'gofr',comp_num)
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])*6.45/60
+    return cord_pairs(bins,gofr)
+    

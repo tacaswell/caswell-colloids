@@ -22,12 +22,6 @@ import lib.plots
 import lib.util 
 
 
-class dbase_error(Exception):
-    def __init__(self,value):
-        self.value = value
-    def __str__(self):
-        return repr(self.value)
-
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
     return sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
@@ -37,7 +31,7 @@ def get_fout_comp(key,conn,func):
     res = conn.execute("select fout,comp_key from comps where dset_key == ? and function == ?",
                        (key,func)).fetchall()
     if not len(res) == 1:
-        raise dbase_error("either no or too many iden operations found")
+        raise lib.util.dbase_error("either no or too many iden operations found")
 
     return res[0]
     # 
