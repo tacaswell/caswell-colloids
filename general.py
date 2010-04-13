@@ -24,7 +24,9 @@ import lib.util
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
-    return sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
+    conn =sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
+    conn.execute('PRAGMA foreign_keys = ON;')
+    return conn
 
 def get_fout_comp(key,conn,func):
     '''Returns the fout name and the computation number for the iden on the dataset given by key'''
