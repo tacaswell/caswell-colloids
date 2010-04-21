@@ -20,7 +20,7 @@ import h5py
 import lib.pov 
 import lib.plots 
 import lib.util 
-
+import numpy as np
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
@@ -80,3 +80,31 @@ def make_z_slices_series(conn,key,step,base_dir,base_name):
     lib.pov.make_z_slices(cords,step,base_dir+'/'+base_name)
     pass
 
+
+def make_phi6(conn,key,save=None):
+    # get fname from
+
+    lib.plots._plot_file_frame_phi6(key,conn,15,save)
+
+def make_nsize(conn,key,save=None):
+    # get fname from
+
+    lib.plots._plot_file_frame_nsize(key,conn,5,save)
+
+def mean_n_size_frame(key,conn,fr_num):
+
+    (fname,p_comp) = conn.execute("select fout,comp_key from comps where function = 'phi6' and dset_key = ?;",(key,)).fetchone()
+
+
+    (sname,stype,temp) = conn.execute("select sname,dtype,temp from dsets where key = ?",(key,)).fetchone()
+
+    
+    f = h5py.File(fname,'r')
+   
+
+    ns = f["/frame%(#)06d"%{"#":fr_num}+"/neighborhood_size_%(#)07d"%{"#":p_comp}]
+
+    nmean = np.mean(ns)
+    print nmean
+    return nmean
+    
