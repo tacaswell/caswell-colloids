@@ -30,6 +30,7 @@ import itertools
 import os
 import os.path
 import general
+import fitting
 
 class cord_pairs:
     def __init__(self,x,y):
@@ -518,4 +519,74 @@ def plot_file_nsize_hist(key,conn,fnameg=None):
         print "closing figure"
         plt.close(fig)
 
+
+
+def try_fits(dset_key,conn):
+    """Try's a couple of fits and plots the results """
+
+    # get out the computation number
+    res = conn.execute("select comp_key from comps where function = 'gofr' and dset_key = ?",(dset_key,)).fetchall()
+    if not len(res) == 1:
+        raise "die"
+
+    # get gofr
+    gofr = general.get_gofr2D(res[0][0],conn)
+    gofr = fitting._trim_gofr(gofr,.2)
+    
+    # fits
+   
+    (p_out1_2,cov1_2,err1_2) = fitting.fit_gofr(gofr,2,fitting.fun_decay_exp_inv,(2,7.35,1.5,0,0,0))
+    (p_out2_2,cov2_2,err2_2) = fitting.fit_gofr(gofr,2,fitting.fun_decay_exp,(1.5,7.35,1.5,0,0,0))
+
+    
+    # plots
+    
+
+    
+    # check interactive plotting and turn it off
+    istatus = plt.isinteractive();
+    print istatus
+    if istatus:plt.ioff()
+
+    leg_hands = []
+    leg_str = []
+
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+    #ax.set_aspect('equal')
+    leg_hands.append(ax.step(gofr.x,gofr.y-1))
+    leg_str.append("g(r)")
+
+
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp_inv(gofr.x,p_out1_2)))
+    leg_str.append("exp inv 2")
+
+
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp(gofr.x,p_out2_2)))
+    leg_str.append("exp 2")
+
+
+
+    print p_out1_2
+    print "exp inv 2 err: " + str(err1_2)
+    print p_out2_2
+    print "exp 2 err: " + str(err2_2)
+
+
+
+    ax.legend(leg_hands,leg_str)
+    ax.set_title('g(r) fitting')
+    ax.set_xlabel(r' r [$\mu$m]')
+    ax.set_ylabel('g(r)')
+    
+            
+    if istatus:
+        print "displaying figure"
+        plt.ion()
+        plt.show()
+    else:
+        print "closing figure"
+        plt.close(fig)
 

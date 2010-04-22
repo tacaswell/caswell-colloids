@@ -21,7 +21,7 @@ import lib.pov
 import lib.plots 
 import lib.util 
 import numpy as np
-import util.cord_pairs as cord_pairs
+from util import cord_pairs
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
@@ -130,7 +130,7 @@ def get_gofr3D(comp_num,conn):
         raise util.dbase_error("error looking up computation")
 
     
-    g = _get_gofr_group(res[0][0],gname,comp_num)
+    g = get_gofr_group(res[0][0],gname,comp_num)
     gofr = np.array(g[dset_names[0]])
     bins = np.array(g[dset_names[1]])
     return cord_pairs(bins,gofr)
@@ -148,7 +148,7 @@ def get_gofr2D(comp_num,conn):
         raise util.dbase_error("error looking up computation")
 
     
-    g = _get_gofr_group(res[0][0],'gofr',comp_num)
+    g = get_gofr_group(res[0][0],'gofr',comp_num)
     gofr = np.array(g[dset_names[0]])
     bins = np.array(g[dset_names[1]])*6.45/60
     return cord_pairs(bins,gofr)
@@ -171,3 +171,5 @@ def sofQ(c_pair,Q ):
        
     
     return S
+
+    
