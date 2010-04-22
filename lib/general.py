@@ -21,6 +21,7 @@ import lib.pov
 import lib.plots 
 import lib.util 
 import numpy as np
+import util.cord_pairs as cord_pairs
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
@@ -108,3 +109,65 @@ def mean_n_size_frame(key,conn,fr_num):
     print nmean
     return nmean
     
+
+def get_gofr_group(fname,prefix,comp_num):
+    '''Returns the h5py group that is  specified '''
+    return  h5py.File(fname,'r')[prefix + "_%(#)07d"%{"#":comp_num}]
+
+
+
+def get_gofr3D(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    numpy array'''
+
+    gname='gofr3D'
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+
+    
+    g = _get_gofr_group(res[0][0],gname,comp_num)
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])
+    return cord_pairs(bins,gofr)
+    
+
+def get_gofr2D(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    numpy array'''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+
+    
+    g = _get_gofr_group(res[0][0],'gofr',comp_num)
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])*6.45/60
+    return cord_pairs(bins,gofr)
+    
+
+def sofQ(c_pair,Q ):
+    '''computes the Fourier transform of the c_pair passed in at all q in Q.'''
+
+
+    tmp_y = np.hstack((np.flipud(c_pair.y),c_pair.y))-1
+    tmp_x = np.hstack((np.flipud(c_pair.x),c_pair.x))
+    tmp_y = tmp_y*tmp_x
+    tmp_x = np.hstack((np.flipud(-c_pair.x),c_pair.x))
+
+    plt.plot(tmp_x,tmp_y)
+    
+    dx = np.mean(np.diff(c_pair.x))
+    sq = lambda q: abs(dx*(1j/q)*sum(tmp_y*np.exp(1j*tmp_x*q*2*np.pi)))**2
+    S = map(sq,Q)
+       
+    
+    return S

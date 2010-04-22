@@ -29,6 +29,7 @@ import util
 import itertools
 import os
 import os.path
+import general
 
 class cord_pairs:
     def __init__(self,x,y):
@@ -218,10 +219,6 @@ def _draw_gofr_hex_lines(ax,r0):
         ax.annotate(str(s),xy=(2*r0*(1+s*lin_scale),2.25),xycoords='data',
                     xytext=(-1,0),textcoords='offset points')
     
-
-def _get_gofr_group(fname,prefix,comp_num):
-    '''Returns the h5py group that is  specified '''
-    return  h5py.File(fname,'r')[prefix + "_%(#)07d"%{"#":comp_num}]
     
 def make_2dv3d_plot(key,conn,fname = None):
     # add error handling on all of these calls
@@ -239,8 +236,8 @@ def make_2dv3d_plot(key,conn,fname = None):
     (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
     print sample_name + " " + str(temp)
-    group = _get_gofr_group(g_fname,'gofr',g_ck)
-    group3D = _get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
+    group = general.get_gofr_group(g_fname,'gofr',g_ck)
+    group3D = general.get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
 
 
     # make plot
@@ -304,7 +301,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
     
     for r in res:
-        g = _get_gofr_group(r[1],'gofr3D',r[0])
+        g = general.get_gofr_group(r[1],'gofr3D',r[0])
         leg_hands.append(ax.plot(g[dset_names[1]],g[dset_names[0]]))
         leg_strs.append(str(r[2]))
         try:
@@ -351,24 +348,6 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
         plt.close(gn_fig)
 
 
-def sofQ(c_pair,Q ):
-    '''computes the Fourier transform of the c_pair passed in at all q in Q.'''
-
-
-    tmp_y = np.hstack((np.flipud(c_pair.y),c_pair.y))-1
-    tmp_x = np.hstack((np.flipud(c_pair.x),c_pair.x))
-    tmp_y = tmp_y*tmp_x
-    tmp_x = np.hstack((np.flipud(-c_pair.x),c_pair.x))
-
-    plt.plot(tmp_x,tmp_y)
-    
-    dx = np.mean(np.diff(c_pair.x))
-    sq = lambda q: abs(dx*(1j/q)*sum(tmp_y*np.exp(1j*tmp_x*q*2*np.pi)))**2
-    S = map(sq,Q)
-       
-    
-    return S
-
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
     res = conn.execute("select comp_key from comps where dset_key=? and function='gofr3D'",(key,)).fetchall()
@@ -376,7 +355,7 @@ def make_sofq_3D_plot(key,conn,Q):
         raise util.dbase_error("can't find 3D gofr")
 
     plt.figure()
-    g = _get_gofr(res[0][0],conn)
+    g = general.get_gofr3D(res[0][0],conn)
 
     S = sofQ(g,Q)
 
@@ -384,8 +363,8 @@ def make_sofq_3D_plot(key,conn,Q):
     if not len(res2)==1:
         raise util.dbase_error("can't find gofr")
     
-    g2 = _get_gofr2D(res2[0][0],conn)
-    S2 = sofQ(g2,Q)
+    g2 = general.get_gofr2D(res2[0][0],conn)
+    S2 = general.sofQ(g2,Q)
 
 
     istatus = plt.isinteractive();
@@ -420,42 +399,6 @@ def make_sofq_3D_plot(key,conn,Q):
 
 
 
-def _get_gofr(comp_num,conn,gname='gofr3D'):
-    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
-    numpy array'''
-
-    dset_names = ['bin_count', 'bin_edges']
-    
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    if not len(res) == 1:
-        print len(res)
-        raise util.dbase_error("error looking up computation")
-
-    
-    g = _get_gofr_group(res[0][0],gname,comp_num)
-    gofr = np.array(g[dset_names[0]])
-    bins = np.array(g[dset_names[1]])
-    return cord_pairs(bins,gofr)
-    
-
-def _get_gofr2D(comp_num,conn):
-    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
-    numpy array'''
-
-    dset_names = ['bin_count', 'bin_edges']
-    
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    if not len(res) == 1:
-        print len(res)
-        raise util.dbase_error("error looking up computation")
-
-    
-    g = _get_gofr_group(res[0][0],'gofr',comp_num)
-    gofr = np.array(g[dset_names[0]])
-    bins = np.array(g[dset_names[1]])*6.45/60
-    return cord_pairs(bins,gofr)
-    
-
 
 def make_2d_gofr_plot(key,conn,fname = None):
     # add error handling on all of these calls
@@ -468,7 +411,7 @@ def make_2d_gofr_plot(key,conn,fname = None):
     (sname, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
     print sname + " " + str(temp)
-    group = _get_gofr_group(g_fname,'gofr',g_ck)
+    group = general.get_gofr_group(g_fname,'gofr',g_ck)
 
 
 

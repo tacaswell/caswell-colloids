@@ -52,3 +52,10 @@ class dbase_error(Exception):
         self.value = value
     def __str__(self):
         return repr(self.value)
+
+class cord_pairs:
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+    def __iter__(self):
+        return itertool.izip(x,y)
