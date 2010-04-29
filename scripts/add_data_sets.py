@@ -166,10 +166,10 @@ def guess_meta_data(fname):
 def ask_meta_data(fname,dtype,sname,temp,date):
     """asks if the values are correct and queries for replacements"""
     print "fname: " + fname
-    query_fun(fname,'dtype',dtype,ask_dtype)
-    query_fun(fname,'sname',sname,ask_sname)
-    query_fun(fname,'temp',temp,ask_temp)
-    query_fun(fname,'date',date,ask_date)
+    dtype = query_fun(fname,'dtype',dtype,ask_dtype)
+    sname = query_fun(fname,'sname',sname,ask_sname)
+    temp = query_fun(fname,'temp',temp,ask_temp)
+    date = query_fun(fname,'date',date,ask_date)
 
     return dtype,sname,temp,date
     
