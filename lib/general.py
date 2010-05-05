@@ -22,6 +22,11 @@ import lib.plots
 import lib.util 
 import numpy as np
 from util import cord_pairs
+import scipy.optimize as sopt
+import scipy.odr as sodr
+import bisect
+
+import matplotlib.pyplot as plts
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
@@ -173,3 +178,94 @@ def sofQ(c_pair,Q ):
     return S
 
     
+def find_peaks(gofr_pairs,expt_spc = None):
+    '''Takes in a pairs object and returns a list of tuples with (x[indx],y[indx],indx)
+
+    expt_spc is the expected spacing of the peaks
+
+    Assumes that the largest peak comes first
+    '''
+
+    # find the largest (assumed to be first) peak
+    
+    
+        
+    if expt_spc is  None:
+        # if no guess given, make a guess based on the location of the first peak
+        pass
+
+
+def find_peaks_fit(gp,dfun,p):
+    """Looks for peaks based on hints from the derivative of the expected function and
+    the fit parameters"""
+
+    wind = 30;
+
+    lmax = []
+    lmin = []
+    
+    # find the first max
+    indx = np.argmax(gp.y)
+    pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
+
+    lmax.append((pfit.beta[1],pfit.beta[2]))
+    
+    # get expected spacing from
+    e_spc = (2*np.pi)/p[1]
+
+    print e_spc
+    
+    #start at first peak + 1/4 e_spc
+    cur_pos = pfit.beta[1] + e_spc/4
+    # step over x range in e_spc/2 steps
+    max_pos = np.max(gp.x)
+    while cur_pos < max_pos:
+        # get zero crossing from dfun
+        crit_p = sopt.brentq(dfun,cur_pos,cur_pos + e_spc/2,args=p)
+
+        # convert value into indx
+        indx = val_to_indx(gp.x,crit_p)
+        # pick out window around that box
+        pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
+
+        print crit_p - pfit.beta[1]
+        # determine if max or min
+        if pfit.beta[0] >0:
+            lmin.append((pfit.beta[1],pfit.beta[2]))
+        elif pfit.beta[0]<0:
+            lmax.append((pfit.beta[1],pfit.beta[2]))
+        
+        # add center/value to max or min output
+
+        # increment cur_pos
+        cur_pos = crit_p +  e_spc/3
+        pass
+
+    return lmax,lmin
+
+
+
+
+def val_to_indx(x,x0):
+    """Returns the index of the first value in x greater than x0, assumes the list is sorted"""
+    return bisect.bisect_left(x,x0)
+
+def fit_peak(x,y):
+    """Fits a quadratic to the data points handed in """
+    def quad(B,x):
+        return B[0] *(x -B[1]) ** 2 + B[2]
+
+    beta = (0,np.mean(x),y[val_to_indx(x,np.mean(x))])
+
+    data = sodr.Data(x,y)
+    model = sodr.Model(quad)
+    worker = sodr.ODR(data,model,beta)
+    out = worker.run()
+
+
+    
+    plts.figure()
+    plts.plot(x,y)
+    plts.plot(x,quad(out.beta,x))
+    plts.title(out.beta[1])
+    return out

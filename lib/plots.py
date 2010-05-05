@@ -276,12 +276,13 @@ def make_2dv3d_plot(key,conn,fname = None):
         
 
 
-def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
+def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr'):
     '''Takes in a sample name and plots all of the g(r) for it '''
+    r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
     
-    res = conn.execute("select comps.comp_key,comps.fout,dsets.temp from comps,dsets where comps.dset_key = dsets.key and comps.function='gofr3D' and dsets.sname = ?",(sname,)).fetchall()
-
+    res = conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin from comps,dsets where comps.dset_key = dsets.key and comps.function=? and dsets.sname = ? and dsets.dtype = 't'",(gtype,sname,)).fetchall()
+    
     # check interactive plotting and turn it off
     istatus = plt.isinteractive();
     print istatus
@@ -298,12 +299,19 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
     gn_g = []
     gn_t = []
     gn_p = []
+    
     gn_fig = plt.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
+
+    print "there are " + str(len(res)) + " entries found"
     
     for r in res:
-        g = general.get_gofr_group(r[1],'gofr3D',r[0])
-        leg_hands.append(ax.plot(g[dset_names[1]],g[dset_names[0]]))
+
+        if r[3].find('quench') !=-1:
+            continue
+        print r[3]
+        g = general.get_gofr_group(r[1],gtype,r[0])
+        leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
         leg_strs.append(str(r[2]))
         try:
             gn_p.append((float(r[2]),np.max(g[dset_names[0]])))
@@ -327,7 +335,8 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
     ax.set_ylabel(r'G(r)')
     
     gn_ax.plot(gn_t,gn_g,'x-')
-    gn_ax.set_title(r'$g_1(T)$')
+    gn_ax.grid(True)
+    gn_ax.set_title(sname + r' $g_1(T)$')
     gn_ax.set_xlabel('T')
     gn_ax.set_ylabel('$g_1$')
 
@@ -348,6 +357,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None):
         plt.close(fig)
         plt.close(gn_fig)
 
+    return zip(gn_t,gn_g)
 
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
@@ -589,4 +599,17 @@ def try_fits(dset_key,conn):
     else:
         print "closing figure"
         plt.close(fig)
+
+
+def tmp_series_gn(sname,conn,n = 6):
+    """Makes plots for g_1 to g_n """
+    gtype = 'gofr'
+    res = conn.execute("select comps.comp_key,dsets.temp\
+    from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
+    dsets.sname = ? and dsets.dtype = 't'",(gtype,sname,)
+                       ).fetchall()
+
+
+
+    g_T = [(general.get_gofr2D(r[0],conn),r[1]) for r in res]
 

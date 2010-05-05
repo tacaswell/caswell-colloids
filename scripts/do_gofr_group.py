@@ -24,9 +24,9 @@ import trackpy.cpp_wrapper as cw
 
 def gofr_group(conn,sname):
 
-    res_t = conn.execute("select dsets.key from dsets,comps where dsets.sname = ? and dsets.key = comps.dset_key and comps.function = 'Iden' and dsets.dtype = 't'",('2010-04-26-6',)).fetchall()
+    res_t = conn.execute("select dsets.key from dsets,comps where dsets.sname = ? and dsets.key = comps.dset_key and comps.function = 'Iden' and dsets.dtype = 't'",(sname,)).fetchall()
 
-    res_z = conn.execute("select dsets.key from dsets,comps where dsets.sname = ? and dsets.key = comps.dset_key and comps.function = 'Iden' and dsets.dtype = 'z'",('2010-04-26-6',)).fetchall()
+    res_z = conn.execute("select dsets.key from dsets,comps where dsets.sname = ? and dsets.key = comps.dset_key and comps.function = 'Iden' and dsets.dtype = 'z'",(sname,)).fetchall()
     for r in res_t:
         print r[0]
         cw.do_gofr(r[0],conn)
@@ -39,8 +39,8 @@ def gofr_group(conn,sname):
 def main_loop():
     conn = gen.open_conn();
     gofr_group(conn,'2010-04-26-2')
-    iden_group(conn,'2010-04-26-6-thin')
-    iden_group(conn,'2010-04-26-6')
+    gofr_group(conn,'2010-04-26-6-thin')
+    gofr_group(conn,'2010-04-26-6')
 
 
 if __name__ == "__main__":
