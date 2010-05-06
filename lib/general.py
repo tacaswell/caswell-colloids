@@ -221,13 +221,16 @@ def find_peaks_fit(gp,dfun,p):
     max_pos = np.max(gp.x)
     while cur_pos < max_pos:
         # get zero crossing from dfun
-        crit_p = sopt.brentq(dfun,cur_pos,cur_pos + e_spc/2,args=p)
-
+        try:
+            crit_p = sopt.brentq(dfun,cur_pos,cur_pos + e_spc/2,args=p)
+            print 'diff from expected' + str(crit_p - (cur_pos + e_spc/4))
+        except ValueError:
+            break
         # convert value into indx
         indx = val_to_indx(gp.x,crit_p)
         # pick out window around that box
         pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
-
+        
         print crit_p - pfit.beta[1]
         # determine if max or min
         if pfit.beta[0] >0:
@@ -238,9 +241,9 @@ def find_peaks_fit(gp,dfun,p):
         # add center/value to max or min output
 
         # increment cur_pos
-        cur_pos = crit_p +  e_spc/3
+        cur_pos = crit_p +  e_spc/4
         pass
-
+    
     return lmax,lmin
 
 
@@ -264,8 +267,8 @@ def fit_peak(x,y):
 
 
     
-    plts.figure()
-    plts.plot(x,y)
-    plts.plot(x,quad(out.beta,x))
-    plts.title(out.beta[1])
+    # plts.figure()
+    # plts.plot(x,y)
+    # plts.plot(x,quad(out.beta,x))
+    # plts.title(out.beta[1])
     return out

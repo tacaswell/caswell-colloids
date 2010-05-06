@@ -225,12 +225,14 @@ def make_2dv3d_plot(key,conn,fname = None):
     # add error handling on all of these calls
     
     # get comp_number of gofr
-    res = conn.execute("select comp_key,fout from comps where dset_key == ? and function == 'gofr'",(key,)).fetchall()
+    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
+    and function == 'gofr'",(key,)).fetchall()
     (g_ck,g_fname) = res[0]
         
         
     # get comp_number of 3D gofr
-    (g3D_ck,g3D_fname) = conn.execute("select comp_key,fout from comps where dset_key == ? and function == 'gofr3D'",(key,)).fetchone()
+    (g3D_ck,g3D_fname) = conn.execute("select comp_key,fout from comps where dset_key == ?\
+    and function == 'gofr3D'",(key,)).fetchone()
 
 
     # get dset name
@@ -601,7 +603,7 @@ def try_fits(dset_key,conn):
         plt.close(fig)
 
 
-def tmp_series_gn(sname,conn,n = 6):
+def tmp_series_gn(sname,conn):
     """Makes plots for g_1 to g_n """
     gtype = 'gofr'
     res = conn.execute("select comps.comp_key,dsets.temp\
@@ -610,6 +612,95 @@ def tmp_series_gn(sname,conn,n = 6):
                        ).fetchall()
 
 
+    temps = [r[1] for r in res]
+    gofrs = [general.get_gofr2D(r[0],conn) for r in res]
+    fits = [fitting.fit_gofr(g,2,fitting.fun_decay_exp_inv) for g in gofrs]
+    peaks = [general.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p[0]) for g,p in zip(gofrs,fits)]
 
-    g_T = [(general.get_gofr2D(r[0],conn),r[1]) for r in res]
 
+    
+    istatus = non_i_plot_start()
+    
+    # make g_n plots for peaks
+    fig,ax = set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(min([len(p[0]) for p in peaks])):
+        leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('$g_n$ maximums')
+    ax.set_xlabel(r'T [C]')
+    ax.set_ylabel('g(peak) -1')
+
+
+    
+    # make g_n plots for troughs
+    fig,ax = set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(min([len(p[1]) for p in peaks])):
+        leg_hands.append(ax.plot(temps,np.array([p[1][j][1] for p in peaks])-1,'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('$g_n$ minimums')
+    ax.set_xlabel(r'T [C]')
+    ax.set_ylabel('g(peak) -1')
+
+
+    # make plot for trough locations
+    fig,ax = set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(min([len(p[1]) for p in peaks])):
+        leg_hands.append(ax.plot(temps,np.array([p[1][j][0] for p in peaks]),'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('minimum locations')
+    ax.set_xlabel(r'T [C]')
+    ax.set_ylabel('r [$\mu m$]')
+
+
+    # make plot for peak locations
+    fig,ax = set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(min([len(p[0]) for p in peaks])):
+        leg_hands.append(ax.plot(temps,np.array([p[0][j][0] for p in peaks]),'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('peak locations')
+    ax.set_xlabel(r'T [C]')
+    ax.set_ylabel('r [$\mu m$]')
+
+    
+    non_i_plot_stop(istatus)
+    
+    return peaks
+
+def non_i_plot_start():
+    istatus = plt.isinteractive();
+    print istatus
+    if istatus:plt.ioff()
+    return istatus
+
+def non_i_plot_stop(istatus):
+    if istatus:
+        print "displaying figure"
+        plt.ion()
+        plt.show()
+    else:
+        print "closing all figures"
+        plt.close('all')
+
+def set_up_plot():
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+    
+    return fig,ax
