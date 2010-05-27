@@ -46,15 +46,20 @@ def _trim_gofr(gofr,r0):
 
     return gofr_trim
 
+def fun_flipper(fun):
+    def ffun(a,b):
+        return fun(b,a)
+    return ffun
+
 def fun_decay_exp_inv(p,r):
     """Returns C/r exp(- r/a) cos(K(r)+phi_0) + m r + b
     evaluated at r.  p = (a,K,C,phi_0,m,b)"""
-    return (p[2] / r) * np.exp(-r/p[0]  ) * np.cos(p[1]*r + p[3])+ r*p[4] + p[5]
+    return (p[2] / r) * np.exp(-r/p[0]  ) * np.cos(p[1]*r + p[3])+ p[4]
 
 def fun_decay_exp_inv_dr(p,r):
     """ d(C/r exp(- r/a) cos(K(r)+phi_0) + m r + b)/dr
     evaluated at r.  p = (a,K,C,phi_0,m,b)"""
-    return p[4] + (np.exp(-(r/p[0]))* (-p[2]* (p[0] + r)* np.cos(p[3] + p[1]* r) - p[0] *p[2]* p[1]* r* np.sin(p[3] + p[1]* r)))/( p[0]* r**2)
+    return (np.exp(-(r/p[0]))* (-p[2]* (p[0] + r)* np.cos(p[3] + p[1]* r) - p[0] *p[2]* p[1]* r* np.sin(p[3] + p[1]* r)))/( p[0]* r**2)
 
 
 def fun_decay_exp(p,r):
@@ -93,7 +98,7 @@ def fit_gofr(gofr,r0,func,p0 =(1,12,.5,0,0,0)):
     # shove into the numpy fitting code
 
 
-def fit_gofr2(gofr,r0,func,p0=(1,12,.5,0,0,0)):
+def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     """
     Fits to 
     Takes in gofr as a cord_pairs and r0 in
@@ -112,7 +117,7 @@ def fit_gofr2(gofr,r0,func,p0=(1,12,.5,0,0,0)):
     model = sodr.Model(func)
     worker = sodr.ODR(data,model,p0)
     out = worker.run()
-
+    out = worker.restart()
     return out
     
 
