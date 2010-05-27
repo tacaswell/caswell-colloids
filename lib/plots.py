@@ -14,12 +14,13 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
-
+from __future__ import division
 
 import sqlite3
 import trackpy.cpp_wrapper as cpp_wrapper
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import random
 import itertools
 import h5py
@@ -31,6 +32,8 @@ import os
 import os.path
 import general
 import fitting
+
+
 
 class cord_pairs:
     def __init__(self,x,y):
@@ -273,18 +276,18 @@ def make_2dv3d_plot(key,conn,fname = None):
         plt.ion()
         plt.show()
     else:
-        close(fig)
+        plt.close(fig)
         
         
 
 
-def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr'):
+def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
     '''Takes in a sample name and plots all of the g(r) for it '''
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
     
-    res = conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin from comps,dsets where comps.dset_key = dsets.key and comps.function=? and dsets.sname = ? and dsets.dtype = 't'",(gtype,sname,)).fetchall()
-    
+    res = general.get_list_gofr(sname,conn,gtype = gtype,date = date)
+    print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
     istatus = plt.isinteractive();
     print istatus
@@ -297,20 +300,20 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr'):
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     ax.grid(True)
-
+    ax.set_color_cycle([cm.jet(x/len(res)) for x in range(len(res))])
     gn_g = []
     gn_t = []
     gn_p = []
+
     
     gn_fig = plt.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
 
-    print "there are " + str(len(res)) + " entries found"
+
     
     for r in res:
 
-        if r[3].find('quench') !=-1:
-            continue
+
         print r[3]
         g = general.get_gofr_group(r[1],gtype,r[0])
         leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
@@ -614,8 +617,9 @@ def tmp_series_gn(sname,conn):
 
     temps = [r[1] for r in res]
     gofrs = [general.get_gofr2D(r[0],conn) for r in res]
-    fits = [fitting.fit_gofr(g,2,fitting.fun_decay_exp_inv) for g in gofrs]
-    peaks = [general.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p[0]) for g,p in zip(gofrs,fits)]
+    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    peaks = [general.find_peaks_fit(g,fitting.fun_flipper(fitting.fun_decay_exp_inv_dr),p.beta)
+             for g,p in zip(gofrs,fits)]
 
 
     
