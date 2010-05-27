@@ -25,7 +25,7 @@ from util import cord_pairs
 import scipy.optimize as sopt
 import scipy.odr as sodr
 import bisect
-
+import itertools
 import matplotlib.pyplot as plts
 
 def open_conn():
@@ -199,52 +199,72 @@ def find_peaks_fit(gp,dfun,p):
     """Looks for peaks based on hints from the derivative of the expected function and
     the fit parameters"""
 
-    wind = 30;
+    wind = 20;
 
     lmax = []
     lmin = []
-    
+    diffs = []
+    sz = []
     # find the first max
     indx = np.argmax(gp.y)
     pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
 
     lmax.append((pfit.beta[1],pfit.beta[2]))
-    
+    diffs.append(gp.x[indx]-pfit.beta[1])
     # get expected spacing from
     e_spc = (2*np.pi)/p[1]
 
     print e_spc
-    
+
+    cur_state = np.sign(pfit.beta[0])
+    sz.append(pfit.beta[0])
     #start at first peak + 1/4 e_spc
     cur_pos = pfit.beta[1] + e_spc/4
     # step over x range in e_spc/2 steps
     max_pos = np.max(gp.x)
+    print max_pos
+    print cur_pos
     while cur_pos < max_pos:
         # get zero crossing from dfun
         try:
             crit_p = sopt.brentq(dfun,cur_pos,cur_pos + e_spc/2,args=p)
-            print 'diff from expected' + str(crit_p - (cur_pos + e_spc/4))
+            print 'diff from expected ' + str(crit_p - (cur_pos + e_spc/4))
         except ValueError:
+            print "no zero found"
             break
         # convert value into indx
         indx = val_to_indx(gp.x,crit_p)
         # pick out window around that box
         pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
         
-        print crit_p - pfit.beta[1]
+        print 'diff from crossing and min/max ' + str( crit_p - pfit.beta[1])
+        diffs.append(crit_p - pfit.beta[1])
+        sz.append(pfit.beta[0])
         # determine if max or min
-        if pfit.beta[0] >0:
-            lmin.append((pfit.beta[1],pfit.beta[2]))
-        elif pfit.beta[0]<0:
-            lmax.append((pfit.beta[1],pfit.beta[2]))
-        
         # add center/value to max or min output
+        if np.abs(pfit.beta[0])<.05:
+            print "peak too small"
+            break
+        if pfit.beta[0] >0:
+            if cur_state != -1:
+                print "found two peaks in a row"
+                break
+            lmin.append((pfit.beta[1],pfit.beta[2]))
+            cur_state = np.sign(pfit.beta[0])
+        elif pfit.beta[0]<0:
+            if cur_state != 1:
+                print "found two troughs in a row"
+                break
+            lmax.append((pfit.beta[1],pfit.beta[2]))
+            cur_state = np.sign(pfit.beta[0])
 
+            
         # increment cur_pos
         cur_pos = crit_p +  e_spc/4
+        wind +=1
         pass
     
-    return lmax,lmin
+    return lmax,lmin,diffs,sz
 
 
 
@@ -267,8 +287,37 @@ def fit_peak(x,y):
 
 
     
-    # plts.figure()
-    # plts.plot(x,y)
-    # plts.plot(x,quad(out.beta,x))
-    # plts.title(out.beta[1])
+    ## plts.figure()
+    ## plts.plot(x,y)
+    ## plts.plot(x,quad(out.beta,x))
+    ## plts.title(out.beta[1])
     return out
+
+def get_list_gofr (sname,conn,date = None,gtype = 'gofr'):
+    """Takes in a  sample name and an optional string specifying
+    the date of the computations to use"""
+
+    print date
+
+    if date is None:
+        return conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
+        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
+        dsets.sname = ?",(gtype,sname,)).fetchall()
+    else:
+        return conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
+        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
+        dsets.sname = ? and dsets.dtype = 't' and comps.date = ?",(gtype,sname,date)).fetchall()
+
+    
+
+
+def crazy_s(g):
+    """Computes the excess structural entropy ala a number of papers """
+    return sum([ (y*np.log(y) + y-1)*(x**2)
+                 for (x,y) in itertools.izip(g.x,g.y)
+                 if y != 0])*np.mean(np.diff(g.x))*np.pi
+    
+    
+
+
+
