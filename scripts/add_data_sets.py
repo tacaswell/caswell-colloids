@@ -40,21 +40,26 @@ def guess_temp(fname):
     fname = fname.split('/')[-1]
     match = re.findall('\d\d-\d',fname)
     if len(match) >0:
-        return min(map(lambda x: float(x.replace('-','.')),match))
+        if len(match) == 3:
+            # this picks out the reference temp as reported by the 
+            return float(match[1].replace('-','.'))
+        else:
+            return min(map(lambda x: float(x.replace('-','.')),match))
 
+    # commented out code to deal with badly formed file names
     
-    match = re.findall('\d\d_\d',fname)
-    if len(match) >0:    
-        return min(map(lambda x: float(x.replace('_','.')),match))
+    ## match = re.findall('\d\d_\d',fname)
+    ## if len(match) >0:    
+    ##     return min(map(lambda x: float(x.replace('_','.')),match))
 
 
-    match = re.findall('\d\d-',fname)
-    if len(match) >0:
-        return min(map(lambda x: float(x.replace('-','')),match))
+    ## match = re.findall('\d\d-',fname)
+    ## if len(match) >0:
+    ##     return min(map(lambda x: float(x.replace('-','')),match))
 
-    match = re.findall('\d\d_',fname)
-    if len(match) >0:
-        return min(map(lambda x: float(x.replace('_','')),match))
+    ## match = re.findall('\d\d_',fname)
+    ## if len(match) >0:
+    ##     return min(map(lambda x: float(x.replace('_','')),match))
 
     return None
 
@@ -75,6 +80,8 @@ def guess_dtype(fname):
     elif fname.find('z')!=-1:
         return 'z'
     elif fname.find('warming')!=-1:
+        return 'ramp'
+    elif fname.find('cooling')!=-1:
         return 'ramp'
     else:
         return 't'
@@ -105,14 +112,22 @@ def ask_dtype(fname):
 
 def guess_sname(fname):
     """Parse the file name and attempt to guess the sample name"""
-    fsplit = fname.split('/')
-    if len(fsplit) > 2:
-        sname = fsplit[1]
-        if fsplit[-1].find('thin') != -1:
-            sname = sname + '-thin'
-
+    # see if there is a file naming the sample
+    f = _base_path + os.path.dirname(fname) + '/sname.txt'
+    if os.path.isfile(f):
+        sf = open(f)
+        sname = sf.readline().strip()
+        sf.close()
     else:
-        sname = ask_sname(fname)
+        # try to guess from naming
+        fsplit = fname.split('/')
+        if len(fsplit) > 2:
+            sname = fsplit[1]
+            if fsplit[-1].find('thin') != -1:
+                sname = sname + '-thin'
+                
+            else:
+                sname = ask_sname(fname)
 
     return sname
 
@@ -206,11 +221,20 @@ def process_fname(conn,fname):
 def visit(conn,dirname,names):
     """Function for walk """
 
+    # way to skip directories I don't like
+    if dirname.find('stupid') != -1:
+        return
+    
+    # loop over names
     for f in names:
+        # assemble fqn
         fname = dirname + '/'+f
+        # if it is a file, not a directory try to process it
         if os.path.isfile(fname):
             (base,ext) = os.path.splitext(fname)
+            # if the file is a tiff
             if ext == '.tif':
+                # and not part a mulit part file
                 multi_f = re.findall('file\d{3}',f)
                 if len(multi_f) ==0:
                     process_fname(conn,fname)
