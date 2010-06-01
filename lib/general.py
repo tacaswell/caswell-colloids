@@ -17,9 +17,9 @@
 
 import sqlite3
 import h5py
-import lib.pov 
-import lib.plots 
-import lib.util 
+import pov 
+import plots 
+import util 
 import numpy as np
 from util import cord_pairs
 import scipy.optimize as sopt
@@ -27,12 +27,23 @@ import scipy.odr as sodr
 import bisect
 import itertools
 import matplotlib.pyplot as plts
+import fitting
 
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
     conn =sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
     conn.execute('PRAGMA foreign_keys = ON;')
     return conn
+
+def delete_comp(comp_num,conn):
+    """Deletes a computation from the database, does not touch the actual data """
+    r = conn.execute("select * from comps where comp_key = ?",(comp_num,)).fetchone();
+    print "Preparing to delete the row " + str(comp_num)
+    print r
+    if util.query_yes_no("are you sure you want to delete this entry? ",default='no')=='yes':
+        conn.execute("delete from comps where comp_key = ?",(comp_num,))
+        conn.commit()
+    pass
 
 def get_fout_comp(key,conn,func):
     '''Returns the fout name and the computation number for the iden on the dataset given by key'''
@@ -298,7 +309,7 @@ def get_list_gofr (sname,conn,date = None,gtype = 'gofr'):
     the date of the computations to use"""
 
     print date
-
+    print gtype
     if date is None:
         return conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
         from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
@@ -321,3 +332,39 @@ def crazy_s(g):
 
 
 
+def estimate_phi3D(key,conn):
+    """Estimates the volume fraction from the number of particles, the
+    position of the first peak and the dimensions of the data"""
+
+    # check to make sure that both the link and 3D g(r) exist and get
+    # logistic information
+    link_res = conn.execute("select fout,comp_key from comps where dset_key = ? and function = 'link3D'",(key,)).fetchall()
+    if len(link_res) == 0:
+        raise "link computation not found"
+    link_res = link_res[-1]
+
+    g_res = conn.execute("select comp_key from comps where dset_key = ? and function = 'gofr3D'",(key,)).fetchall()
+    if len(g_res) == 0:
+        raise dbase_error("g(r) 3D computation not found")
+    g_res = g_res[-1]
+
+
+
+    # get g(r) data and fit first peak
+    g = get_gofr3D(g_res[0],conn)
+    pram = fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) 
+    peaks = find_peaks_fit(g,fitting.fun_flipper(fitting.fun_decay_exp_inv_dr),pram.beta)
+    r = peaks[0][0][0]/2
+    # get dimension from data set
+    F = h5py.File(link_res[0],'r')
+    dim = F.attrs.get('dims',0);
+
+    
+    # get number of entries in data set
+    p_count = len(F["/frame000000/x_%(#)07d"%{"#":link_res[1]}])
+    # compute
+    phi = (np.pi * r**3 * 4/3) * p_count / (np.prod(dim))
+    # clean up everything
+    F.close()
+    return (phi,p_count/(.63*np.prod(dim)/(np.pi*(.98/2)**3*4/3)))
+    pass
