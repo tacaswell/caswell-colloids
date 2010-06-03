@@ -24,20 +24,19 @@ import trackpy.cpp_wrapper as cw
 
 def gofr_date(conn,date):
 
-    res_t = conn.execute("select key from dsets where date = ? and dtype = 't'",(date,)).fetchall()
+    ## res_t = conn.execute("select key from dsets where date = ? and dtype = 't'",(date,)).fetchall()
 
 
-    for r in res_t:
-        print r[0]
-        cw.do_gofr(r[0],conn)
-
-    ## res_z = conn.execute("select key from dsets where date = ? and dtype = 'z'",(date,)).fetchall()
-    ## for r in res_z:
-    ##     continue
+    ## for r in res_t:
     ##     print r[0]
     ##     cw.do_gofr(r[0],conn)
-    ##     cw.do_link3D(r[0],conn)
-    ##     cw.do_gofr3D(r[0],conn)
+
+    res_z = conn.execute("select key from dsets where date = ? and dtype = 'z'",(date,)).fetchall()
+    for r in res_z:
+        print r[0]
+        #cw.do_gofr(r[0],conn)
+        #cw.do_link3D(r[0],conn)
+        cw.do_gofr3D(r[0],conn)
 
 def main_loop():
     conn = gen.open_conn();

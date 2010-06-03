@@ -26,13 +26,21 @@ import trackpy.cpp_wrapper as cw
 
 def iden_group(conn,sname):
     res = conn.execute("select key from dsets where sname = ?",(sname,)).fetchall()
+    iden_lst(res,conn)
+
+def iden_date(conn,date):
+    res = conn.execute("select key from dsets where date = ?",(date,)).fetchall()
+    iden_lst(res,conn)
+    
+def iden_lst(res,conn):
     for r in res:
         print r[0]
         cw.do_Iden(r[0],conn)
 
+        
 def main_loop():
     conn = gen.open_conn();
-    iden_group(conn,'2010-04-26-2')
+    iden_date(conn,'2010-05-24')
     #iden_group(conn,'2010-04-26-6-thin')
     #iden_group(conn,'6b')
 

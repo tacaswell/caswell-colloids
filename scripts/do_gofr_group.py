@@ -31,6 +31,7 @@ def gofr_group(conn,sname):
         print r[0]
         cw.do_gofr(r[0],conn)
     for r in res_z:
+        continue
         print r[0]
         cw.do_gofr(r[0],conn)
         cw.do_link3D(r[0],conn)
@@ -40,7 +41,7 @@ def main_loop():
     conn = gen.open_conn();
     gofr_group(conn,'2010-04-26-2')
     gofr_group(conn,'2010-04-26-6-thin')
-    gofr_group(conn,'2010-04-26-6')
+    gofr_group(conn,'2010-04-26-6-q')
 
 
 if __name__ == "__main__":
