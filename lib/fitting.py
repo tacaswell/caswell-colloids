@@ -74,7 +74,7 @@ def fun_decay_inv(p,r):
     return (p[1] / r) * np.cos(p[0]*r + p[2])
 
 
-def fit_gofr(gofr,r0,func,p0 =(1,12,.5,0,0,0)):
+def fit_gofr(gofr,r0,func,p0 =(1,12,.5,0,1)):
     """
     Fits to 
     Takes in gofr as a cord_pairs and r0 in
