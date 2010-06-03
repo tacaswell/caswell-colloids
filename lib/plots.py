@@ -230,13 +230,13 @@ def make_2dv3d_plot(key,conn,fname = None):
     # get comp_number of gofr
     res = conn.execute("select comp_key,fout from comps where dset_key == ?\
     and function == 'gofr'",(key,)).fetchall()
-    (g_ck,g_fname) = res[0]
+    (g_ck,g_fname) = res[-1]
         
         
     # get comp_number of 3D gofr
-    (g3D_ck,g3D_fname) = conn.execute("select comp_key,fout from comps where dset_key == ?\
-    and function == 'gofr3D'",(key,)).fetchone()
-
+    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
+    and function == 'gofr3D'",(key,)).fetchall()
+    (g3D_ck,g3D_fname) = res[-1]
 
     # get dset name
     (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
@@ -286,7 +286,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
     
-    res = general.get_list_gofr(sname,conn,gtype = gtype,date = date)
+    res = general.get_list_gofr(sname,conn,date = date,gtype = gtype)
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
     istatus = plt.isinteractive();
@@ -318,15 +318,17 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
         g = general.get_gofr_group(r[1],gtype,r[0])
         leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
         leg_strs.append(str(r[2]))
-        try:
-            gn_p.append((float(r[2]),np.max(g[dset_names[0]])))
-            # gn_t.append((float(r[2]))
-            # gn_g.append(np.max(g[dset_names[0]]))
-        except (ValueError,TypeError ) :
-            gn_p.append((25,np.max(g[dset_names[0]])))
-            # gn_t.append(25)
-            # gn_g.append(np.max(g[dset_names[0]]))
-            pass
+        g1 = np.max(g[dset_names[0]])
+        if not np.isnan(g1):
+            try:
+                gn_p.append((float(r[2]),g1))
+                # gn_t.append((float(r[2]))
+                # gn_g.append(np.max(g[dset_names[0]]))
+            except (ValueError,TypeError ) :
+                gn_p.append((25,np.max(g[dset_names[0]])))
+                # gn_t.append(25)
+                # gn_g.append(np.max(g[dset_names[0]]))
+                pass
 
     gn_p.sort(lambda x,y: int(np.sign(x[0]-y[0])))
     for p in gn_p:
@@ -339,7 +341,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
     ax.set_xlabel(r'r [$\mu m$]')
     ax.set_ylabel(r'G(r)')
     
-    gn_ax.plot(gn_t,gn_g,'x-')
+    gn_ax.plot(gn_t,np.array(gn_g)-1,'x-')
     gn_ax.grid(True)
     gn_ax.set_title(sname + r' $g_1(T)$')
     gn_ax.set_xlabel('T')
@@ -540,12 +542,12 @@ def try_fits(dset_key,conn):
     """Try's a couple of fits and plots the results """
 
     # get out the computation number
-    res = conn.execute("select comp_key from comps where function = 'gofr' and dset_key = ?",(dset_key,)).fetchall()
+    res = conn.execute("select comp_key from comps where function = 'gofr3D' and dset_key = ?",(dset_key,)).fetchall()
     if not len(res) == 1:
         raise "die"
 
     # get gofr
-    gofr = general.get_gofr2D(res[0][0],conn)
+    gofr = general.get_gofr3D(res[0][0],conn)
     gofr = fitting._trim_gofr(gofr,.2)
     
     # fits
@@ -575,11 +577,11 @@ def try_fits(dset_key,conn):
     leg_str.append("g(r)")
 
 
-    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp_inv(gofr.x,p_out1_2)))
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp_inv(p_out1_2,gofr.x)))
     leg_str.append("exp inv 2")
 
 
-    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp(gofr.x,p_out2_2)))
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp(p_out2_2,gofr.x)))
     leg_str.append("exp 2")
 
 
@@ -608,15 +610,15 @@ def try_fits(dset_key,conn):
 
 def tmp_series_gn(sname,conn):
     """Makes plots for g_1 to g_n """
-    gtype = 'gofr'
+    gtype = 'gofr3D'
     res = conn.execute("select comps.comp_key,dsets.temp\
     from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-    dsets.sname = ? and dsets.dtype = 't'",(gtype,sname,)
+    dsets.sname = ?",(gtype,sname,)
                        ).fetchall()
 
 
     temps = [r[1] for r in res]
-    gofrs = [general.get_gofr2D(r[0],conn) for r in res]
+    gofrs = [general.get_gofr3D(r[0],conn) for r in res]
     fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
     peaks = [general.find_peaks_fit(g,fitting.fun_flipper(fitting.fun_decay_exp_inv_dr),p.beta)
              for g,p in zip(gofrs,fits)]
