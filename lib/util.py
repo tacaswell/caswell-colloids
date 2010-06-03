@@ -36,9 +36,17 @@ class Cords2D:
         self.I = None
         
     def __iter__(self):
-        return _triple_objects(self.x,self.y,self.I)
+        if self.I is None:
+            return _pair_objects(self.x,self.y)
+        else:
+            return _triple_objects(self.x,self.y,self.I)
 
-    
+
+def _pair_objects(a,b):
+    """ generator for triples"""
+    for i in range(len(a)):
+        yield (a[i],b[i])
+
 def _triple_objects(a,b,c):
     """ generator for triples"""
     for i in range(len(a)):
