@@ -210,6 +210,7 @@ def find_peaks_fit(gp,dfun,p):
     """Looks for peaks based on hints from the derivative of the expected function and
     the fit parameters"""
 
+    dfun = fitting.fun_flipper(dfun)
     wind = 20;
 
     lmax = []
@@ -368,3 +369,22 @@ def estimate_phi3D(key,conn):
     F.close()
     return (phi,p_count/(.63*np.prod(dim)/(np.pi*(.98/2)**3*4/3)))
     pass
+
+def open_gofr_by_plane_group(comp_num,conn):
+    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    fname = fname[-1][0]
+    return  h5py.File(fname)['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+    
+
+def get_gofr_by_plane_cps(comp_num,conn):
+    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    fname = fname[-1][0]
+    F =  h5py.File(fname)
+    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+
+    g_l = [cord_pairs(g[c]['bin_edges'][:],g[c]['bin_count'][:]) for c in g]
+
+    
+    del g
+    F.close()
+    return g_l

@@ -30,7 +30,7 @@ import util
 import itertools
 import os
 import os.path
-import general
+import general as gen
 import fitting
 
 
@@ -242,8 +242,8 @@ def make_2dv3d_plot(key,conn,fname = None):
     (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
     print sample_name + " " + str(temp)
-    group = general.get_gofr_group(g_fname,'gofr',g_ck)
-    group3D = general.get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
+    group = gen.get_gofr_group(g_fname,'gofr',g_ck)
+    group3D = gen.get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
 
 
     # make plot
@@ -286,7 +286,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
     
-    res = general.get_list_gofr(sname,conn,date = date,gtype = gtype)
+    res = gen.get_list_gofr(sname,conn,date = date,gtype = gtype)
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
     istatus = plt.isinteractive();
@@ -315,7 +315,7 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
 
 
         print r[3]
-        g = general.get_gofr_group(r[1],gtype,r[0])
+        g = gen.get_gofr_group(r[1],gtype,r[0])
         leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
         leg_strs.append(str(r[2]))
         g1 = np.max(g[dset_names[0]])
@@ -373,7 +373,7 @@ def make_sofq_3D_plot(key,conn,Q):
         raise util.dbase_error("can't find 3D gofr")
 
     plt.figure()
-    g = general.get_gofr3D(res[0][0],conn)
+    g = gen.get_gofr3D(res[0][0],conn)
 
     S = sofQ(g,Q)
 
@@ -381,8 +381,8 @@ def make_sofq_3D_plot(key,conn,Q):
     if not len(res2)==1:
         raise util.dbase_error("can't find gofr")
     
-    g2 = general.get_gofr2D(res2[0][0],conn)
-    S2 = general.sofQ(g2,Q)
+    g2 = gen.get_gofr2D(res2[0][0],conn)
+    S2 = gen.sofQ(g2,Q)
 
 
     istatus = plt.isinteractive();
@@ -429,7 +429,7 @@ def make_2d_gofr_plot(key,conn,fname = None):
     (sname, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
     print sname + " " + str(temp)
-    group = general.get_gofr_group(g_fname,'gofr',g_ck)
+    group = gen.get_gofr_group(g_fname,'gofr',g_ck)
 
 
 
@@ -547,7 +547,7 @@ def try_fits(dset_key,conn):
         raise "die"
 
     # get gofr
-    gofr = general.get_gofr3D(res[0][0],conn)
+    gofr = gen.get_gofr3D(res[0][0],conn)
     gofr = fitting._trim_gofr(gofr,.2)
     
     # fits
@@ -608,19 +608,19 @@ def try_fits(dset_key,conn):
         plt.close(fig)
 
 
-def tmp_series_gn(sname,conn):
+def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
     """Makes plots for g_1 to g_n """
-    gtype = 'gofr3D'
+
     res = conn.execute("select comps.comp_key,dsets.temp\
     from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-    dsets.sname = ?",(gtype,sname,)
+    dsets.sname = ? and dtype = ?",(gtype,sname,dtype,)
                        ).fetchall()
 
 
     temps = [r[1] for r in res]
-    gofrs = [general.get_gofr3D(r[0],conn) for r in res]
+    gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
     fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
-    peaks = [general.find_peaks_fit(g,fitting.fun_flipper(fitting.fun_decay_exp_inv_dr),p.beta)
+    peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
              for g,p in zip(gofrs,fits)]
 
 
@@ -710,3 +710,89 @@ def set_up_plot():
     ax.grid(True)
     
     return fig,ax
+
+
+
+def make_gofr_by_plane_plots(comp,conn):
+    istatus = non_i_plot_start()
+    (fig,ax) = set_up_plot()
+    
+    gc = gen.get_gofr_by_plane_cps(comp,conn)
+    
+    dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
+    (temp,dtype) = conn.execute("select temp,dtype from dsets where key = ?",(dset,)).fetchone()
+
+    ax.plot([np.max(g.y) for g in gc])
+    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
+    
+    
+    non_i_plot_stop(istatus)
+    
+
+
+def make_gofr_by_plane(d_lst,conn):
+    istatus = non_i_plot_start()
+    (fig,ax) = set_up_plot()
+    leg_strs = []
+    leg_hand = []
+    cmap = color_mapper(np.min([d[1] for d in d_lst]),np.max([d[1] for d in d_lst]))
+    for d in d_lst:
+        dkey = d[0]
+        ckeys = conn.execute("select comp_key from comps where dset_key = ? and function = 'gofr_by_plane'",(dkey,)).fetchall()
+        for c in ckeys:
+            print c
+            gc = gen.get_gofr_by_plane_cps(c[0],conn)
+            leg_hand.append(ax.plot([np.max(g.y) for g in gc],color = cmap.get_color(d[1])))
+            leg_strs.append(str(d[1]))
+            
+    ax.legend(leg_hand,leg_strs)
+    non_i_plot_stop(istatus)
+
+
+class color_mapper:
+    def __init__(self,mn,mx,name = 'jet'):
+        self._mn = mn
+        self._mx = mx
+        self.cmp = cm.get_cmap(name)
+    def get_color(self,t):
+        return self.cmp((t-self._mn)/(self._mx-self._mn))
+    
+
+
+def gn_type_plots(sname,conn):
+
+    istatus = non_i_plot_start()
+    
+    # make g_n plots for peaks
+    fig,ax = set_up_plot()
+    leg_strs = []
+    leg_hands = []
+
+
+    for t in ['t','z']:
+        res = conn.execute("select comps.comp_key,dsets.temp\
+        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
+        dsets.sname = ? and dtype = ?",('gofr',sname,t,)
+                       ).fetchall()
+
+
+        temps = [r[1] for r in res]
+        gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
+        fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+        peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
+                 for g,p in zip(gofrs,fits)]
+
+
+    
+
+        for j in range(min([len(p[0]) for p in peaks])):
+            leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
+            leg_strs.append('$g_'+str(j)+'$ ' + t )
+
+
+
+    ax.legend(leg_hands,leg_strs)
+    ax.set_title('$g_n$ maximums')
+    ax.set_xlabel(r'T [C]')
+    ax.set_ylabel('g(peak) -1')
+

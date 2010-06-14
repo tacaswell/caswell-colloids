@@ -74,30 +74,6 @@ def fun_decay_inv(p,r):
     return (p[1] / r) * np.cos(p[0]*r + p[2])
 
 
-def fit_gofr(gofr,r0,func,p0 =(1,12,.5,0,1)):
-    """
-    Fits to 
-    Takes in gofr as a cord_pairs and r0 in
-    units of d, d as determined by the location
-    of the first peak.
-
-    Returns the tuple that is the argument for the function
-    used for the fitting, the covariance matrix, and the
-    sum of the residual squared
-    """
-    # trim the g(r) data
-    gofr = _trim_gofr(gofr,r0)
-    
-
-    def local_fun(p):
-        return func(p,gofr.x) - gofr.y+1
-
-    (p_out,p_cov,id,m,flg) = scipy.optimize.leastsq(local_fun,p0,full_output=1)
-    print flg
-    return p_out,p_cov,(sum(local_fun(p_out))**2)/len(gofr.x)
-    # shove into the numpy fitting code
-
-
 def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     """
     Fits to 
