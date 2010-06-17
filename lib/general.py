@@ -249,14 +249,17 @@ def find_peaks_fit(gp,dfun,p):
         # pick out window around that box
         pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
         
-        print 'diff from crossing and min/max ' + str( crit_p - pfit.beta[1])
-        diffs.append(crit_p - pfit.beta[1])
-        sz.append(pfit.beta[0])
+
         # determine if max or min
         # add center/value to max or min output
         if np.abs(pfit.beta[0])<.05:
             print "peak too small"
             break
+
+        print 'diff from crossing and min/max ' + str( crit_p - pfit.beta[1])
+        diffs.append(crit_p - pfit.beta[1])
+        sz.append(pfit.beta[0])
+        
         if pfit.beta[0] >0:
             if cur_state != -1:
                 print "found two peaks in a row"
