@@ -698,7 +698,9 @@ def non_i_plot_stop(istatus):
     if istatus:
         print "displaying figure"
         plt.ion()
+        plt.draw()
         plt.show()
+        
     else:
         print "closing all figures"
         plt.close('all')
@@ -720,11 +722,11 @@ def make_gofr_by_plane_plots(comp,conn):
     gc = gen.get_gofr_by_plane_cps(comp,conn)
     
     dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
-    (temp,dtype) = conn.execute("select temp,dtype from dsets where key = ?",(dset,)).fetchone()
+    (temp,dtype,fname) = conn.execute("select temp,dtype,fname from dsets where key = ?",(dset,)).fetchone()
 
     ax.plot([np.max(g.y) for g in gc])
-    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
-    
+    #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
+    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
     
     non_i_plot_stop(istatus)
     
