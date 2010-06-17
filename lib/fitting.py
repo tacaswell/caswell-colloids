@@ -53,12 +53,12 @@ def fun_flipper(fun):
 
 def fun_decay_exp_inv(p,r):
     """Returns C/r exp(- r/a) cos(K(r)+phi_0) + m r + b
-    evaluated at r.  p = (a,K,C,phi_0,m,b)"""
+    evaluated at r.  p = (a,K,C,phi_0,b)"""
     return (p[2] / r) * np.exp(-r/p[0]  ) * np.cos(p[1]*r + p[3])+ p[4]
 
 def fun_decay_exp_inv_dr(p,r):
     """ d(C/r exp(- r/a) cos(K(r)+phi_0) + m r + b)/dr
-    evaluated at r.  p = (a,K,C,phi_0,m,b)"""
+    evaluated at r.  p = (a,K,C,phi_0,b)"""
     return (np.exp(-(r/p[0]))* (-p[2]* (p[0] + r)* np.cos(p[3] + p[1]* r) - p[0] *p[2]* p[1]* r* np.sin(p[3] + p[1]* r)))/( p[0]* r**2)
 
 
