@@ -68,6 +68,10 @@ class cord_pairs:
         self.y = y
     def __iter__(self):
         return itertool.izip(x,y)
+    def norm_gofr(self):
+        if len(self.x) == len(self.y) + 1:
+            self.y = self.y/((sum(self.y)/(pi*self.x[-1]**2))*diff(pi*self.x**2))
+            self.x = self.x[:-1]
 
 ## {{{ http://code.activestate.com/recipes/577058/ (r2)
 def query_yes_no(question, default="yes"):
