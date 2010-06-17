@@ -24,7 +24,47 @@ import lib.general as gen
 import trackpy.cpp_wrapper
 import numpy as np
 
-def hist_shifts(key,conn,fig = None):
+def shift_mod(F,fr,comp_num,dr,bin_edges):
+    tmp_data = F[fr][dr + "_shift_%(#)07d"%{'#':comp_num}][:]
+    (tmp_hist, junk) = np.histogram(np.mod(tmp_data,1),bin_edges,new=True)
+    return tmp_hist
+
+def x_shift_mod(F,fr,comp_num,bin_edges):
+    return shift_mod(F,fr,comp_num,'x',bin_edges)
+
+def y_shift_mod(F,fr,comp_num,bin_edges):
+    return shift_mod(F,fr,comp_num,'y',bin_edges)
+
+def xy_shift_mod(F,fr,comp_num,bin_edges):
+    return x_shift_mod(F,fr,comp_num,bin_edges) + x_shift_mod(F,fr,comp_num,bin_edges)
+
+def _shift(F,fr,comp_num,dr,bin_edges):
+    tmp_data = F[fr][dr + "_shift_%(#)07d"%{'#':comp_num}][:]
+    (tmp_hist, junk) = np.histogram(tmp_data,bin_edges,new=True)
+    return tmp_hist
+
+def x_shift(F,fr,comp_num,bin_edges):
+    return _shift(F,fr,comp_num,'x',bin_edges)
+
+def y_shift(F,fr,comp_num,bin_edges):
+    return _shift(F,fr,comp_num,'y',bin_edges)
+
+def xy_shift(F,fr,comp_num,bin_edges):
+    return _shift(F,fr,comp_num,'x',bin_edges) + _shift(F,fr,comp_num,'y',bin_edges)
+
+def shift_mag(F,fr,comp_num,bin_edges):
+    tmp_data = np.sqrt(F[fr]["x_shift_%(#)07d"%{'#':comp_num}][:]**2 +
+                       F[fr]["y_shift_%(#)07d"%{'#':comp_num}][:]**2)
+    (tmp_hist, junk) = np.histogram(tmp_data,bin_edges,new=True)
+    return tmp_hist
+
+def shift_mag_mod(F,fr,comp_num,bin_edges):
+    tmp_data = np.sqrt(F[fr]["x_shift_%(#)07d"%{'#':comp_num}][:]**2 +
+                       F[fr]["y_shift_%(#)07d"%{'#':comp_num}][:]**2)
+    (tmp_hist, junk) = np.histogram(np.mod(tmp_data,1),bin_edges,new=True)
+    return tmp_hist
+
+def hist_shifts(key,conn,fun,range_bn = None, fig = None):
     """makes histograms of the shift in the x and y directions """
 
     # get file name/comp_num
@@ -36,16 +76,17 @@ def hist_shifts(key,conn,fig = None):
     F = h5py.File(fname,'r')
 
     nbins = 100
-    
-    bin_edges = np.linspace(-2,2,nbins + 1)
+
+    if range_bn is None:
+        bin_edges = np.linspace(-2,2,nbins + 1)
+    else:
+        bin_edges = np.linspace(*(range_bn +  (nbins + 1,)))
     bin_counts = np.zeros(nbins)
     # extract the relevant data
     for fr in F:
         if fr == 'parameters':
             continue
-        tmp_data = F[fr]["x_shift_%(#)07d"%{'#':comp_num}][:]
-        (tmp_hist, junk) = np.histogram(np.mod(tmp_data,1),bin_edges,new=True)
-        bin_counts += tmp_hist
+        bin_counts += fun(F,fr,comp_num,bin_edges)
         
     # plot
     istatus = lplts.non_i_plot_start()
@@ -54,7 +95,7 @@ def hist_shifts(key,conn,fig = None):
     else:
         ax = fig.get_axes()[0]
         
-    sh = ax.step(bin_edges[:-1],bin_counts)
+    sh = ax.step(bin_edges[:-1],bin_counts/np.sum(bin_counts))
 
     if ax.get_legend() is None:
         print 'attempt to set leg'
