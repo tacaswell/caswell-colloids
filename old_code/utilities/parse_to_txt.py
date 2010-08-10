@@ -21,21 +21,122 @@ import subprocess
 import datetime
 import os.path
 import sys
+writeSet = ['z-position','acquisition-time-local']
+"""
+list of meta data, put which ever values you want into writeSet
 
+'Exposure'
+'Binning'
+'Region'
+'Subtract'
+'Shading'
+'Sensor Mode'
+'Digitizer'
+'Gain'
+'Camera Shutter'
+'Clear Count'
+'Clear Mode'
+'Frames to Average'
+'Trigger Mode'
+'Temperature'
+'MetaDataVersion'
+'ApplicationName'
+'ApplicationVersion'
+'plane-type'
+'pixel-size-x'
+'pixel-size-y'
+'bits-per-pixel'
+'autoscale-state'
+'autoscale-min-percent'
+'autoscale-max-percent'
+'scale-min'
+'scale-max'
+'spatial-calibration-state'
+'spatial-calibration-x'
+'spatial-calibration-y'
+'spatial-calibration-units'
+'image-name'
+'threshold-state'
+'threshold-low'
+'threshold-high'
+'threshold-color'
+'zoom-percent'
+'gamma'
+'look-up-table-type'
+'look-up-table-name'
+'photonegative-mode'
+'gray-calibration-curve-fit-algorithm'
+'gray-calibration-values'
+'gray-calibration-min'
+'gray-calibration-max'
+'gray-calibration-units'
+'plane-guid'
+'acquisition-time-local'
+'modification-time-local'
+'stage-position-x'
+'stage-position-y'
+'stage-label'
+'z-position'
+'wavelength'
+'camera-binning-x'
+'camera-binning-y'
+'camera-chip-offset-x'
+'camera-chip-offset-y'
+'_IllumSetting_'
+'_MagNA_'
+'_MagRI_'
+'_MagSetting_'
+'number-of-planes'
+'dtime'
+"""
 
-def _write(file,name,val):
-    if name == "acquisition-time-local" or name == "modification-time-local":
+class txtFile:
+    def __init__(self,fname):
+        self.f = open(fout,'w')
+    def add_entry(self,key,val):
+        if key in writeSet:
+            self.f.write(key + ": " + str(val) + "\n")
+    def start_frame(self,n):
+        self.f.write("Frame " + str(n) + "\n")
+    def end_frame(self):
+        self.f.write("\n\n")
+
+    def close(self):
+        self.f.close()
+    def __del__(self):
+        self.close()
+
+class dict_vecs:
+    def __init__(self):
+        self.d = {}
+        for k in writeSet:
+            self.d[k] = []
+    def add_entry(self,key,val):
+        if key in writeSet:
+            self.d[key].append(val)
+    def start_frame(self,n):
+        pass
+    def end_frame(self):
+        pass
+    def close(self):
+        pass
+    
+
+        
+def _write(file,key,val):
+    if key == "acquisition-time-local" or key == "modification-time-local":
         tmp = int(val[18:])
         val = val[:18] + "%(#)03d"%{"#":tmp}
-    file.write(name + ": " + str(val) + "\n")
+    file.add_entry(key,val)
+        
 
 
 def _start_group(f,n):
-    f.write("Frame " + str(n) + "\n")
+    f.start_frame(n)
 
 
 def _end_group(f):
-    f.write("\n\n")
+    f.end_frame()
     
     
 def _parse_attr(file_obj,dom_obj):
@@ -57,21 +158,6 @@ def _parse_des(file_obj,des_obj):
         if len(tmp_split) ==2:
             _write(file_obj,tmp_split[0],tmp_split[1].encode('ascii'))
 
-def _parse_params_attr(file_obj,i_str):
-    ssplit = i_str.strip().split(':')
-
-    if len(ssplit)==3:
-        print ssplit
-    elif ssplit[0].strip()=='p_rad' or ssplit[0].strip()=='d_rad'or ssplit[0].strip()=='mask_rad':
-        _write(file_obj,ssplit[0].strip(),int(float(ssplit[1].strip())))
-        print ssplit
-    elif ssplit[0].strip()=='threshold'or ssplit[0].strip()=='hwhm' or ssplit[0].strip()=='shift_cut' or ssplit[0].strip()=='rg_cut' or ssplit[0].strip()=='e_cut':
-        _write(file_obj,ssplit[0].strip(),float(ssplit[1].strip()))
-        print ssplit
-    else:
-        print ssplit[0].strip()
-
-
 def _parse_params(file_obj,fname):
     f = open(fname)
     for line in f:
@@ -80,28 +166,18 @@ def _parse_params(file_obj,fname):
     n_fname  = fname[:(len(fname)-5)] + ".done"
     os.rename(fname,n_fname)
 
-def _parse_temp(file_obj,fname):
-    rexp = re.compile('\d\d-\d')
-    ma = rexp.findall(fname)
-    if(len(ma)>=1):
-        _write(file_obj,'probe_temp',float('.'.join(ma[0].split('-'))))
-    if(len(ma)==2):
-        _write(file_obj,'lens_temp',float('.'.join(ma[0].split('-'))))
-
-def parse_file(fname_in,i_path,o_path):
-    fname = i_path + fname_in + '.tif'
-
-    out_fname  = o_path + fname_in + '.txt'
+def parse_file(fin,f):
+    
 
     
-    print fname
+    print fin
     # make sure the files exist
-    if not (os.path.exists(fname) ):
+    if not (os.path.exists(fin) ):
         print "file does not exist"
         exit()
 
 
-    f = open(out_fname,'w')
+        
     
 
 
@@ -112,7 +188,7 @@ def parse_file(fname_in,i_path,o_path):
 
     _start_group(f,0)
 
-    a = subprocess.Popen(["tiffinfo","-0",fname] ,stdout=subprocess.PIPE)
+    a = subprocess.Popen(["tiffinfo","-0",fin] ,stdout=subprocess.PIPE)
     tiff_string = (a.stdout).readlines();
     tiff_string = "".join(tiff_string)
 
@@ -142,12 +218,12 @@ def parse_file(fname_in,i_path,o_path):
     _end_group(f)
     
     
-    frame_count = 5
+
     
 
     for frame in range(1,frame_count):
         _start_group(f,frame)
-        a = subprocess.Popen(["tiffinfo","-"+str(frame),fname] ,stdout=subprocess.PIPE)
+        a = subprocess.Popen(["tiffinfo","-"+str(frame),fin] ,stdout=subprocess.PIPE)
         tiff_string = (a.stdout).readlines();
         tiff_string = "".join(tiff_string)
         xml_str = tiff_string[(tiff_string.find("<MetaData>")):(10 + tiff_string.rfind("MetaData>"))]
@@ -169,19 +245,13 @@ def parse_file(fname_in,i_path,o_path):
         _end_group(f)
     f.close()
 
+    return f
 
-if len(sys.argv) <2:
-    print "provide a file name"
-    exit()
-if len(sys.argv) >= 2:
-    file_name = sys.argv[1]
-if len(sys.argv) >= 3:
-    i_path = sys.argv[2]
-else:
-    i_path = ""
-if len(sys.argv) >= 4:
-    o_path = sys.argv[3]
-else:
-    o_path = ""
-
-parse_file(file_name,i_path,o_path)
+if __name__ == "__main__":
+    if len(sys.argv) !=3:
+        print "provide a input file and an output file"
+        exit()
+    else:
+        fin = sys.argv[1]
+        fout =  sys.argv[2]
+    parse_file(fin,txtFile(fout))

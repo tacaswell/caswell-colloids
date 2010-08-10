@@ -126,10 +126,15 @@ def mean_n_size_frame(key,conn,fr_num):
     return nmean
     
 
-def get_gofr_group(fname,prefix,comp_num):
-    '''Returns the h5py group that is  specified '''
-    return  h5py.File(fname,'r')[prefix + "_%(#)07d"%{"#":comp_num}]
-
+## def get_gofr_group(fname,prefix,comp_num):
+##     '''Returns the h5py group that is  specified '''
+##     F = h5py.File(fname,'r')
+##     try:
+##         g = F[prefix + "_%(#)07d"%{"#":comp_num}]
+##         return g
+##     except KeyError:
+##         print prefix + "_%(#)07d"%{"#":comp_num}
+##         print F.keys()
 
 
 def get_gofr3D(comp_num,conn):
@@ -162,11 +167,15 @@ def get_gofr2D(comp_num,conn):
     if not len(res) == 1:
         print len(res)
         raise util.dbase_error("error looking up computation")
-
     
-    g = get_gofr_group(res[0][0],'gofr',comp_num)
+    print comp_num
+    F = h5py.File(res[0][0],'r')
+    print "gofr_%(#)07d"%{"#":comp_num}
+    print "gofr_%(#)07d"%{"#":comp_num} in F.keys()
+    g = F["gofr_%(#)07d"%{"#":comp_num}]
     gofr = np.array(g[dset_names[0]])
     bins = np.array(g[dset_names[1]])*6.45/60
+    F.close()
     return cord_pairs(bins,gofr)
     
 
@@ -218,7 +227,7 @@ def find_peaks_fit(gp,dfun,p):
     diffs = []
     sz = []
     # find the first max
-    indx = np.argmax(gp.y)
+    indx = np.argmax(gp.y[15:])+15
     pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
 
     lmax.append((pfit.beta[1],pfit.beta[2]))
@@ -391,3 +400,22 @@ def get_gofr_by_plane_cps(comp_num,conn):
     del g
     F.close()
     return g_l
+
+def get_exp_time(comp_num,conn):
+    """
+    Given a set number returns the effective exposure of the first frame in an Iden
+    """
+    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
+                                " function like 'Iden%'",(comp_num,)).fetchone()
+
+    
+    F = h5py.File(fname,'r')
+    if 'Exposure' in F.attrs.keys():
+        exp_time = float(F.attrs['Exposure'].strip().split(' ')[0])
+    elif 'Exposure' in  F['/frame000000'].attrs.keys():
+        exp_time = F['/frame000000'].attrs['Exposure']
+
+    F.close()
+    
+    return exp_time
+    

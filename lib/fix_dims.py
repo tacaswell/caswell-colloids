@@ -29,6 +29,14 @@ def _get_real_dims(h5f,comp_num):
     real_dims[2] = math.ceil(h5f["/frame000000/z_%(#)07d"%{"#":comp_num}][:].max())
     return real_dims
 
+
+def _get_real_2d_dims(h5f,comp_num):
+    real_dims = np.zeros(2)
+    real_dims[0] = math.ceil(h5f["/frame000000/x_%(#)07d"%{"#":comp_num}][:].max())
+    real_dims[1] = math.ceil(h5f["/frame000000/y_%(#)07d"%{"#":comp_num}][:].max())
+    return real_dims
+
+
 def _get_attr_dims(h5f):
     return h5f.attrs.get('dims',0);
 
@@ -71,5 +79,17 @@ def compare_dims(comp_num,conn):
     return attr_dims,real_dims        
 
 
+def fix_xy_dims(comp_num,conn):
+    
+    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchone()[0]
+    F = h5py.File(fname,'r+')
+ 
+
+    real_dims = _get_real_2d_dims(F,comp_num)
+
+    
+    #del F.attrs['dims']
+    F.attrs.create('dims',real_dims,None,'float32')
+    F.close()
 
 

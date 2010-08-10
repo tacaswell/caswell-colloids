@@ -42,6 +42,46 @@ class cord_pairs:
     def __iter__(self):
         return itertool.izip(x,y)
 
+
+
+class Figure:
+    def __init__(self,xlabel,ylabel,title,*args,**kwargs):
+        
+        self.fig,self.ax = set_up_plot()
+        self.leg_hands = []
+        self.leg_strs = []
+        if 'func' in kwargs:
+            self.func = kwargs['func']
+        else:
+            self.func = matplotlib.axes.Axes.plot
+        if 'count' in kwargs:
+            count = kwargs['count']
+            cmap = cm.get_cmap('jet')
+            self.ax.set_color_cycle([cmap(j/(count-1)) for j in range(count)] )
+        
+        
+        add_labels(self.ax,title,xlabel,ylabel)
+        
+    def plot(self,x,y,*args,**kwargs):
+        self.leg_hands.append(self.func(self.ax,x,y,*args))
+        if 'label' in kwargs:
+            txt = kwargs['label']
+        else:
+            txt = str(len(self.leg_hands))
+        self.leg_strs.append(txt)
+        self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
+        plt.draw()
+
+
+class color_mapper:
+    def __init__(self,mn,mx,name = 'jet'):
+        self._mn = mn
+        self._mx = mx
+        self.cmp = cm.get_cmap(name)
+    def get_color(self,t):
+        return self.cmp((t-self._mn)/(self._mx-self._mn))
+
+
 # change to take 
 def _plot_file_frame_phi6(key,conn,fr_num,fnameg=None):
     '''
@@ -281,12 +321,22 @@ def make_2dv3d_plot(key,conn,fname = None):
         
 
 
-def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
+def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
     '''Takes in a sample name and plots all of the g(r) for it '''
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
+
     
-    res = gen.get_list_gofr(sname,conn,date = date,gtype = gtype)
+    res = [conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
+    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
+           for c in comp_list]
+
+    res.sort(key=lambda x:x[2])
+
+    print res
+    (sname,) = conn.execute("select sname from dsets where key in (select dset_key from comps where\
+    comp_key = ?)",(res[0][0],)).fetchone()
+
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
     istatus = plt.isinteractive();
@@ -314,8 +364,10 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
     for r in res:
 
 
-        print r[3]
-        g = gen.get_gofr_group(r[1],gtype,r[0])
+        print r[1]
+        F = h5py.File(r[1],'r')
+        g = F[gtype + "_%(#)07d"%{"#":r[0]}]
+
         leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
         leg_strs.append(str(r[2]))
         g1 = np.max(g[dset_names[0]])
@@ -329,14 +381,14 @@ def make_gofr_tmp_series(sname,conn,fnameg=None,fnamegn=None,gtype='gofr',date =
                 # gn_t.append(25)
                 # gn_g.append(np.max(g[dset_names[0]]))
                 pass
-
+        F.close()
     gn_p.sort(lambda x,y: int(np.sign(x[0]-y[0])))
     for p in gn_p:
         gn_t.append(p[0])
         gn_g.append(p[1])
     print gn_t
     print gn_g
-    fig.legend(leg_hands,leg_strs)
+    fig.legend(leg_hands,leg_strs,loc=0)
     ax.set_title(sname)
     ax.set_xlabel(r'r [$\mu m$]')
     ax.set_ylabel(r'G(r)')
@@ -418,18 +470,18 @@ def make_sofq_3D_plot(key,conn,Q):
 
 
 
-def make_2d_gofr_plot(key,conn,fname = None):
+def make_2d_gofr_plot(comp_key,conn,fname = None):
     # add error handling on all of these calls
     
     # get comp_number of gofr
-    res = conn.execute("select comp_key,fout from comps where dset_key == ? and function == 'gofr'",(key,)).fetchall()
-    (g_ck,g_fname) = res[0]
+    (key,g_fname) = conn.execute("select dset_key,fout from comps where comp_key == ? and function == 'gofr'",(comp_key,)).fetchone()
+    
         
     # get dset name
     (sname, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
     print sname + " " + str(temp)
-    group = gen.get_gofr_group(g_fname,'gofr',g_ck)
+    group = gen.get_gofr_group(g_fname,'gofr',comp_key)
 
 
 
@@ -608,15 +660,46 @@ def try_fits(dset_key,conn):
         plt.close(fig)
 
 
-def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
-    """Makes plots for g_1 to g_n """
+def gn2D(comp_lst,conn,fig,txt):
+    
 
-    res = conn.execute("select comps.comp_key,dsets.temp\
-    from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-    dsets.sname = ? and dtype = ?",(gtype,sname,dtype,)
-                       ).fetchall()
+    res = [conn.execute("select comps.comp_key,dsets.temp\
+    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
+           for c in comp_lst]
+
+    
+    
+    temps = [r[1] for r in res]
+    gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
+    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
+             for g,p in zip(gofrs,fits)]
 
 
+    fig.plot(temps,np.array([p[0][0][1] for p in peaks])-1,txt)
+        
+        
+        
+
+    
+    
+
+
+
+
+def tmp_series_gn2D(comp_list,conn):
+    """Makes plots for g_1 to g_n
+    
+    comp_list : list of 1 element tuple that contain the computation
+    number to be plotted
+    """
+
+    res = [conn.execute("select comps.comp_key,dsets.temp\
+    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
+           for c in comp_list]
+
+    res.sort(key=lambda x:x[1])
+    
     temps = [r[1] for r in res]
     gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
     fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
@@ -635,10 +718,8 @@ def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
         leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
         leg_strs.append('$g_'+str(j)+'$' )
 
-    ax.legend(leg_hands,leg_strs)
-    ax.set_title('$g_n$ maximums')
-    ax.set_xlabel(r'T [C]')
-    ax.set_ylabel('g(peak) -1')
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
 
 
     
@@ -650,11 +731,9 @@ def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
         leg_hands.append(ax.plot(temps,np.array([p[1][j][1] for p in peaks])-1,'x-'))
         leg_strs.append('$g_'+str(j)+'$' )
 
-    ax.legend(leg_hands,leg_strs)
-    ax.set_title('$g_n$ minimums')
-    ax.set_xlabel(r'T [C]')
-    ax.set_ylabel('g(peak) -1')
-
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    add_labels(ax,'$g_n$ minimums',r'T [C]','g(peak) -1')
+    
 
     # make plot for trough locations
     fig,ax = set_up_plot()
@@ -664,10 +743,8 @@ def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
         leg_hands.append(ax.plot(temps,np.array([p[1][j][0] for p in peaks]),'x-'))
         leg_strs.append('$g_'+str(j)+'$' )
 
-    ax.legend(leg_hands,leg_strs)
-    ax.set_title('minimum locations')
-    ax.set_xlabel(r'T [C]')
-    ax.set_ylabel('r [$\mu m$]')
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    add_labels(ax,'minimum locations',r'T [C]','r [$\mu m$]')
 
 
     # make plot for peak locations
@@ -678,15 +755,22 @@ def tmp_series_gn(sname,conn,dtype = 't',gtype = 'gofr'):
         leg_hands.append(ax.plot(temps,np.array([p[0][j][0] for p in peaks]),'x-'))
         leg_strs.append('$g_'+str(j)+'$' )
 
-    ax.legend(leg_hands,leg_strs)
-    ax.set_title('peak locations')
-    ax.set_xlabel(r'T [C]')
-    ax.set_ylabel('r [$\mu m$]')
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    add_labels(ax,'peak locations',r'T [C]','r [$\mu m$]')
 
     
     non_i_plot_stop(istatus)
     
     return peaks
+
+
+
+def add_labels(ax,title_txt,xlabel_txt,ylabel_txt):
+    """Sets the title, xlabel, and ylabel texts on the axis ax """
+    ax.set_title(title_txt)
+    ax.set_xlabel(xlabel_txt)
+    ax.set_ylabel(ylabel_txt)
+
 
 def non_i_plot_start():
     istatus = plt.isinteractive();
@@ -710,7 +794,6 @@ def set_up_plot():
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     ax.grid(True)
-    
     return fig,ax
 
 
@@ -724,7 +807,11 @@ def make_gofr_by_plane_plots(comp,conn):
     dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
     (temp,dtype,fname) = conn.execute("select temp,dtype,fname from dsets where key = ?",(dset,)).fetchone()
 
-    ax.plot([np.max(g.y) for g in gc])
+    wind = 30
+    max_indx = [np.argmax(g.y) for g in gc]
+    betas = [gen.fit_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
+    ax.step(range(0,len(betas)),[b.beta[2] for b in betas])
+    ax.step(range(0,len(gc)),[np.max(g.y) for g in gc])
     #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
     ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
     
@@ -750,14 +837,6 @@ def make_gofr_by_plane(d_lst,conn):
     ax.legend(leg_hand,leg_strs)
     non_i_plot_stop(istatus)
 
-
-class color_mapper:
-    def __init__(self,mn,mx,name = 'jet'):
-        self._mn = mn
-        self._mx = mx
-        self.cmp = cm.get_cmap(name)
-    def get_color(self,t):
-        return self.cmp((t-self._mn)/(self._mx-self._mn))
     
 
 
@@ -794,7 +873,5 @@ def gn_type_plots(sname,conn):
 
 
     ax.legend(leg_hands,leg_strs)
-    ax.set_title('$g_n$ maximums')
-    ax.set_xlabel(r'T [C]')
-    ax.set_ylabel('g(peak) -1')
+    add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
 

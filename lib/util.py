@@ -16,9 +16,38 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 
 import sys
+import Image
+import numpy as np
+
+class img_wrapper:
+    def __init__(self,fname):
+        self.im = Image.open(fname)
+    def get_yslice(self,row,col_rng):
+        return np.vstack([self.get_row(row,col_rng,j) for j in range(0,150)])
+    def get_row(self,row,col_rng,frame):
+        self.im.seek(frame)
+        wind = 2
+        tmp  =  np.mean(np.asarray(self.im)[col_rng[0]:col_rng[1],(row-2):(row +2)],1)
+        return tmp - np.min(tmp)
+        
+   
 
 class Cords3D:
     """A class for carrying around sets of 3D data"""
+    def fromFile(self,F,comp_number):
+        self.x = F['frame000000']['x_%(#)07d'%{"#":comp_number}][:]
+        self.y = F['frame000000']['y_%(#)07d'%{"#":comp_number}][:]
+        self.z = F['frame000000']['z_%(#)07d'%{"#":comp_number}][:]
+        self.I = F['frame000000']['intensity_%(#)07d'%{"#":comp_number}][:]
+        return self
+    def fromArrays(self,x,y,z,I):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.I = I
+        return self
+
+        
     def __init__(self):
         self.x = None
         self.y = None
@@ -27,6 +56,9 @@ class Cords3D:
         
     def __iter__(self):
         return _quad_objects(self.x,self.y,self.z,self.I)
+
+    def get_region(self,x_rng,y_rng,z_rng):
+        pass
 
 class Cords2D:
     """A class for carrying around sets of 2D data"""

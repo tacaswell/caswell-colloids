@@ -21,13 +21,18 @@ import h5py
 
 
 _params = ['threshold',
- 'p_rad',
- 'hwhm',
- 'd_rad',
- 'mask_rad',
- 'shift_cut',
- 'rg_cut',
- 'e_cut']
+           'p_rad',
+           'hwhm',
+           'd_rad',
+           'mask_rad',
+           'shift_cut',
+           'rg_cut',
+           'e_cut']
+
+
+def make_table(conn):
+    conn.execute(u'CREATE TABLE Iden_prams (comp_key INTEGER, dset_key INTEGER,  threshold FLOAT,hwhm FLOAT,shift_cut FLOAT,rg_cut FLOAT,e_cut FLOAT,top_cut FLOAT,p_rad INTEGER,d_rad INTEGER,mask_rad INTEGER,FOREIGN KEY(dset_key) REFERENCES dsets(key),FOREIGN KEY(comp_key) REFERENCES comps(comp_key))')
+    conn.commit()
 
 def extract_iden_prams(comp,conn):
     """Takes a computation ID, extracts the paramters from the hdf file,
@@ -39,16 +44,16 @@ def extract_iden_prams(comp,conn):
 
     g = F['parameters']['x_%(#)07d'%{'#':comp}]
     pr = [g.attrs[p] for p in _params]
-    
+    F.close()
     return (dsk,comp) + tuple(pr)
 
 def add_iden_pram_to_db(params,conn):
     """Adds a set of Iden parameters to the database.  Take a tuple of the form
-    (dset_key,comp_key,threshold,p_rad,hwhm,d_rad,mask_rad,shift_cut,rg_cut,e_cut) """
+    (dset_key,comp_key,threshold,top_cut,p_rad,hwhm,d_rad,mask_rad,shift_cut,rg_cut,e_cut) """
 
     conn.execute("insert into Iden_prams" +
-                 " (dset_key,comp_key,threshold,p_rad,hwhm,d_rad,mask_rad,shift_cut,rg_cut,e_cut) " +
-                 "values (?,?,?,?,?,?,?,?,?,?);",params)
+                 " (dset_key,comp_key,threshold,top_cut,p_rad,hwhm,d_rad,mask_rad,shift_cut,rg_cut,e_cut) " +
+                 "values (?,?,?,?,?,?,?,?,?,?,?);",params)
     conn.commit()
 
 

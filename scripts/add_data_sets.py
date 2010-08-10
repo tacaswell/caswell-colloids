@@ -29,8 +29,8 @@ _base_path = '/home/tcaswell/colloids/data/polyNIPAM_batch_12/'
 def check_existance(conn,fname):
     '''Checks the connection to see if there is already an entry for
     this filename.  Returns bool'''
-    res = conn.execute("select key from dsets where fname")
-    if res.rowcount >0:
+    res = conn.execute("select key from dsets where fname = ?",(fname,)).fetchall()
+    if len(res) >0:
         return True
     
     return False
@@ -128,7 +128,8 @@ def guess_sname(fname):
                 
             else:
                 sname = ask_sname(fname)
-
+        else:
+            sname = ask_sname(fname)
     return sname
 
 def ask_sname(fname):
@@ -238,7 +239,34 @@ def visit(conn,dirname,names):
                 multi_f = re.findall('file\d{3}',f)
                 if len(multi_f) ==0:
                     process_fname(conn,fname)
+    
+def visit2(conn,dirname,names):
+    # way to skip directories I don't like
+    if dirname.find('stupid') != -1:
+        return
+    
+    # loop over names
+    for f in names:
+        # assemble fqn
+        fname = dirname + '/'+f
+        # if it is a file, not a directory try to process it
+        if os.path.isfile(fname):
+            (base,ext) = os.path.splitext(fname)
+            # if the file is a tiff
+            if ext == '.tif':
+                # and not part a mulit part file
+                multi_f = re.findall('file\d{3}',f)
+                if len(multi_f) ==0:
+                    fname = os.path.realpath(fname)
+                    if not check_existance(conn,fname):
+                        print fname
+    
             
-def dir_loop(path,conn):
+def check_loop(path,conn):
+    """Path is the top level directory to look in, uses walk """
+    os.path.walk(path,visit2,conn)
+
+            
+def add_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
     os.path.walk(path,visit,conn)

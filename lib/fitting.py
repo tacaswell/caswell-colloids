@@ -29,7 +29,7 @@ def _trim_gofr(gofr,r0):
     Returns a cords_pair object with g(r>r0) 
     """
     # find the first peak
-    d0 = gofr.x[np.argmax(gofr.y)]
+    d0 = gofr.x[np.argmax(gofr.y[15:])+15]
 
     print "the Diameter is " + str(d0)
 
