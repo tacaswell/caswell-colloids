@@ -77,7 +77,7 @@ def guess_dtype(fname):
     """Parse the file name and attempt to guess the type"""
     if fname.find('ztl') != -1:
         return 'ztl'
-    elif fname.find('z')!=-1:
+    elif fname.find('_z')!=-1:
         return 'z'
     elif fname.find('warming')!=-1:
         return 'ramp'
