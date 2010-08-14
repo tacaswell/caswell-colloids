@@ -33,12 +33,12 @@ def _fd(str_,n):
 def write_delta_T(comp,conn):
     """Goes back and adds the delta T md to msd results"""
     (fin,fout) = conn.execute("select fin,fout from comps where comp_key = ?",(comp,)).fetchone()
-    #(iden_comp,) = conn.execute("select comp_key from comps where fout = ? and function = 'Iden'",(fin,)).fetchone()
-#    Fin = h5py.File(fin,'r')
+    (iden_comp,) = conn.execute("select comp_key from comps where fout = ? and function = 'Iden'",(fin,)).fetchone()
+    Fin = h5py.File(fin,'r')
     # get delta T
-    dt = .4 #Fin['frame000006'].attrs['dtime']
- #   Fin.close()
-  #  del Fin
+    dt = Fin['frame000006'].attrs['dtime']
+    Fin.close()
+    del Fin
     # set it
     Fout = h5py.File(fout,'r+')
     Fout[_fd('msd_squared',comp)].attrs['dtime'] = dt
@@ -59,11 +59,14 @@ def plot_msd(comp_key,conn,fig=None):
     g_name = _fd('mean_squared_disp',comp_key)
     msd = Fin[g_name]
     msd = Fin[g_name]['data'][:]
-    #dt = Fin[g_name].attrs['dtime']
-    dt = 1
+    dt = Fin[g_name].attrs['dtime']
+    
     print dt
     t = (numpy.arange(len(msd))+1)*dt
-    fig.plot(t,msd,label=str(temp))
+
+    cm = plt.color_mapper(27,33)
+    
+    fig.plot(t,msd,label=str(temp),color=cm.get_color(temp))
     Fin.close()
     del Fin
     return fig

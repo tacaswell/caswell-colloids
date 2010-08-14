@@ -382,10 +382,10 @@ def estimate_phi3D(key,conn):
     return (phi,p_count/(.63*np.prod(dim)/(np.pi*(.98/2)**3*4/3)))
     pass
 
-def open_gofr_by_plane_group(comp_num,conn):
-    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    fname = fname[-1][0]
-    return  h5py.File(fname)['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+## def open_gofr_by_plane_group(comp_num,conn):
+##     fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+##     fname = fname[-1][0]
+##     return  h5py.File(fname)['gofr_by_plane_%(#)07d'%{'#':comp_num}]
     
 
 def get_gofr_by_plane_cps(comp_num,conn):
@@ -400,6 +400,19 @@ def get_gofr_by_plane_cps(comp_num,conn):
     del g
     F.close()
     return g_l
+
+def get_gofr_by_plane_tmp(comp_num,conn):
+    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchone()
+    
+    F =  h5py.File(fname)
+    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+
+    temps = [g[c].attrs['temperature'] for c in g]
+
+    
+    del g
+    F.close()
+    return temps
 
 def get_exp_time(comp_num,conn):
     """

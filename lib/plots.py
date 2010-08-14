@@ -17,7 +17,7 @@
 from __future__ import division
 
 import sqlite3
-import trackpy.cpp_wrapper as cpp_wrapper
+
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -63,11 +63,13 @@ class Figure:
         add_labels(self.ax,title,xlabel,ylabel)
         
     def plot(self,x,y,*args,**kwargs):
-        self.leg_hands.append(self.func(self.ax,x,y,*args))
         if 'label' in kwargs:
             txt = kwargs['label']
+            del kwargs['label']
         else:
             txt = str(len(self.leg_hands))
+        
+        self.leg_hands.append(self.func(self.ax,x,y,*args,**kwargs))
         self.leg_strs.append(txt)
         self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
         plt.draw()
@@ -333,7 +335,7 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
 
     res.sort(key=lambda x:x[2])
 
-    print res
+    
     (sname,) = conn.execute("select sname from dsets where key in (select dset_key from comps where\
     comp_key = ?)",(res[0][0],)).fetchone()
 
@@ -350,7 +352,7 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     ax.grid(True)
-    ax.set_color_cycle([cm.jet(x/len(res)) for x in range(len(res))])
+    
     gn_g = []
     gn_t = []
     gn_p = []
@@ -359,21 +361,31 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     gn_fig = plt.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
 
-
+    def get_gofr_tmp(fname,comp_num):
+        F = h5py.File(fname,'r')
+        t = F[gtype + "_%(#)07d"%{"#":comp_num}].attrs['temperature']
+        F.close()
+        return t
     
-    for r in res:
+    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    tmax = max(temps)
+    tmin = min(temps)
+    ax.set_color_cycle([cm.jet((t-tmin)/(tmax-tmin)) for t in temps])
+    for r,temperature in zip(res,temps):
 
 
-        print r[1]
+        
         F = h5py.File(r[1],'r')
         g = F[gtype + "_%(#)07d"%{"#":r[0]}]
-
+        
+        
         leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
-        leg_strs.append(str(r[2]))
+        leg_strs.append(str(np.round(temperature,2)))
         g1 = np.max(g[dset_names[0]])
+        
         if not np.isnan(g1):
             try:
-                gn_p.append((float(r[2]),g1))
+                gn_p.append((temperature,g1))
                 # gn_t.append((float(r[2]))
                 # gn_g.append(np.max(g[dset_names[0]]))
             except (ValueError,TypeError ) :
@@ -694,13 +706,21 @@ def tmp_series_gn2D(comp_list,conn):
     number to be plotted
     """
 
-    res = [conn.execute("select comps.comp_key,dsets.temp\
-    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
+    res = [conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",c).fetchone()
            for c in comp_list]
 
     res.sort(key=lambda x:x[1])
     
-    temps = [r[1] for r in res]
+    def get_gofr_tmp(fname,comp_num):
+        F = h5py.File(fname,'r')
+        t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
+        F.close()
+        return t
+    
+    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+
+
     gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
     fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
     peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
@@ -803,15 +823,15 @@ def make_gofr_by_plane_plots(comp,conn):
     (fig,ax) = set_up_plot()
     
     gc = gen.get_gofr_by_plane_cps(comp,conn)
-    
+    temps = gen.get_gofr_by_plane_tmp(comp,conn)
     dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
     (temp,dtype,fname) = conn.execute("select temp,dtype,fname from dsets where key = ?",(dset,)).fetchone()
 
     wind = 30
-    max_indx = [np.argmax(g.y) for g in gc]
+    max_indx = [np.argmax(g.y[5:])+5 for g in gc]
     betas = [gen.fit_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
-    ax.step(range(0,len(betas)),[b.beta[2] for b in betas])
-    ax.step(range(0,len(gc)),[np.max(g.y) for g in gc])
+    ax.step(temps,[b.beta[2] for b in betas])
+    ax.step(temps,[np.max(g.y) for g in gc])
     #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
     ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
     
