@@ -54,14 +54,16 @@ def plot_msd(comp_key,conn,fig=None):
     
     (fin,dset) = conn.execute("select fout,dset_key from comps where comp_key = ?",(comp_key,)).fetchone()
     (temp,) = conn.execute("select temp from dsets where key = ?",(dset,)).fetchone()
-    print fin
+    
+    
+    
     Fin = h5py.File(fin,'r')
     g_name = _fd('mean_squared_disp',comp_key)
     msd = Fin[g_name]
     msd = Fin[g_name]['data'][:]
     dt = Fin[g_name].attrs['dtime']
-    
-    print dt
+    print 
+    print 'the delta is ',  dt, 'for comp ' ,comp_key
     t = (numpy.arange(len(msd))+1)*dt
 
     cm = plt.color_mapper(27,33)
@@ -88,3 +90,23 @@ def plot_msd_series(comp_key_lst,conn,sname=None):
     fig = plt.Figure('t[s]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.loglog)
     for c in cmplst:
         plot_msd(c[0],conn,fig)
+
+def delete_msd(comp_key,conn):
+    """Deletes all record of a computation from both the data files and the data base """
+    # get data file name
+    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_key,)).fetchone()
+    # open file
+    F = h5py.File(fname)
+    # delete data sets
+    del F[_fd('mean_squared_disp',comp_key)]
+    del F[_fd('mean_disp',comp_key)]
+    del F[_fd('msd_squared',comp_key)]
+    # make sure changes take and clean up file
+    F.flush()
+    F.close()
+    del F
+    # delete from database
+    conn.execute("delete from comps where comp_key = ?",(comp_key,))
+    conn.execute("delete from msd_prams where comp_key = ?",(comp_key,))
+    conn.commit()
+                 
