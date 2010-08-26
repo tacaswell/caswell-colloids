@@ -228,3 +228,11 @@ def get_exp_time(comp_num,conn):
     
     return exp_time
     
+
+def ff(n):
+    """Formats frame names """
+    return "frame%(#)06d"%{"#":n}
+
+def fd(str_,n):
+    """ formats dset names"""
+    return str_ + "_%(#)07d"%{"#":n}

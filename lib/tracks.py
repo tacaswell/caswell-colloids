@@ -22,13 +22,12 @@ def _ff(n):
 def _fd(str_,n):
     """ formats dset names"""
     return str_ + "_%(#)07d"%{"#":n}
-def extract_track(F,frame_num,part_num,track_group,x_group,y_group,trk):
+def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
     """starting with particle part_num in frame_num extracts the path going forwards """
-    
-    trk.append((F[_ff(frame_num)][x_group][part_num],F[_ff(frame_num)][y_group][part_num]))
-    nxt = F[_ff(frame_num)][track_group][part_num]
+    trk.append((F[_ff(frame_num)][_fd('x',iden_group)][part_num],F[_ff(frame_num)][_fd('y',iden_group)][part_num]))
+    nxt = F[_ff(frame_num)][_fd('next_part',track_group)][part_num]
     if  nxt != -1:
-        extract_track(F,frame_num+1,nxt,track_group,x_group,y_group,trk)
+        extract_track(F,frame_num+1,nxt,track_group,iden_group,trk)
 
 
 def print_info(F,frame_num,part_num,comp_num):
