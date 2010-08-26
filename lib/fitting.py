@@ -115,3 +115,92 @@ def fit_tmp_series_gofr2D(res,conn):
 
             
     return zip(fits,temps)
+
+def fit_quad_to_peak(x,y):
+    """Fits a quadratic to the data points handed in """
+    def quad(B,x):
+        return B[0] *(x -B[1]) ** 2 + B[2]
+
+    beta = (0,np.mean(x),y[val_to_indx(x,np.mean(x))])
+
+    data = sodr.Data(x,y)
+    model = sodr.Model(quad)
+    worker = sodr.ODR(data,model,beta)
+    out = worker.run()
+
+
+    
+    ## plts.figure()
+    ## plts.plot(x,y)
+    ## plts.plot(x,quad(out.beta,x))
+    ## plts.title(out.beta[1])
+    return out
+
+def try_fits(dset_key,conn):
+    """Try's a couple of fits and plots the results """
+
+    # get out the computation number
+    res = conn.execute("select comp_key from comps where function = 'gofr3D' and dset_key = ?",(dset_key,)).fetchall()
+    if not len(res) == 1:
+        raise "die"
+
+    # get gofr
+    gofr = gen.get_gofr3D(res[0][0],conn)
+    gofr = fitting._trim_gofr(gofr,.2)
+    
+    # fits
+   
+    (p_out1_2,cov1_2,err1_2) = fitting.fit_gofr(gofr,2,fitting.fun_decay_exp_inv,(2,7.35,1.5,0,0,0))
+    (p_out2_2,cov2_2,err2_2) = fitting.fit_gofr(gofr,2,fitting.fun_decay_exp,(1.5,7.35,1.5,0,0,0))
+
+    
+    # plots
+    
+
+    
+    # check interactive plotting and turn it off
+    istatus = plt.isinteractive();
+    print istatus
+    if istatus:plt.ioff()
+
+    leg_hands = []
+    leg_str = []
+
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+    #ax.set_aspect('equal')
+    leg_hands.append(ax.step(gofr.x,gofr.y-1))
+    leg_str.append("g(r)")
+
+
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp_inv(p_out1_2,gofr.x)))
+    leg_str.append("exp inv 2")
+
+
+    leg_hands.append(ax.step(gofr.x,fitting.fun_decay_exp(p_out2_2,gofr.x)))
+    leg_str.append("exp 2")
+
+
+
+    print p_out1_2
+    print "exp inv 2 err: " + str(err1_2)
+    print p_out2_2
+    print "exp 2 err: " + str(err2_2)
+
+
+
+    ax.legend(leg_hands,leg_str)
+    ax.set_title('g(r) fitting')
+    ax.set_xlabel(r' r [$\mu$m]')
+    ax.set_ylabel('g(r)')
+    
+            
+    if istatus:
+        print "displaying figure"
+        plt.ion()
+        plt.show()
+    else:
+        print "closing figure"
+        plt.close(fig)

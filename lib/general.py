@@ -120,16 +120,6 @@ def mean_n_size_frame(key,conn,fr_num):
     return nmean
     
 
-## def get_gofr_group(fname,prefix,comp_num):
-##     '''Returns the h5py group that is  specified '''
-##     F = h5py.File(fname,'r')
-##     try:
-##         g = F[prefix + "_%(#)07d"%{"#":comp_num}]
-##         return g
-##     except KeyError:
-##         print prefix + "_%(#)07d"%{"#":comp_num}
-##         print F.keys()
-
     
 
 def sofQ(c_pair,Q ):
