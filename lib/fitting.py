@@ -20,36 +20,16 @@ import scipy.odr as sodr
 import numpy as np
 import scipy.optimize
 import general
-
-def _trim_gofr(gofr,r0):
-    """     Takes in gofr as a cord_pairs and r0 in
-    units of 1/d, d as determined by the location
-    of the first peak.
-
-    Returns a cords_pair object with g(r>r0) 
-    """
-    # find the first peak
-    d0 = gofr.x[np.argmax(gofr.y[15:])+15]
-
-    print "the Diameter is " + str(d0)
-
-    # convert r0 to real units
-    r0 *=d0
-
-    
-    
-    # cut the data at r0
-    r_arg = np.argmax([v for v in gofr.x if v<= r0])
-    gofr_trim = cord_pairs(gofr.x[r_arg:],gofr.y[r_arg:])
-
-
-
-    return gofr_trim
+import plots
 
 def fun_flipper(fun):
     def ffun(a,b):
         return fun(b,a)
     return ffun
+
+###################
+# functional forms#
+###################
 
 def fun_decay_exp_inv(p,r):
     """Returns C/r exp(- r/a) cos(K(r)+phi_0) + m r + b
@@ -74,27 +54,75 @@ def fun_decay_inv(p,r):
     return (p[1] / r) * np.cos(p[0]*r + p[2])
 
 
-def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
-    """
-    Fits to 
-    Takes in gofr as a cord_pairs and r0 in
-    units of d, d as determined by the location
-    of the first peak.
+def fun_lorentzian(p,r):
+    """Returns C/((r/a)^2 +1) evaluated at r, p = (a,C)"""
+    return p[1] / ((r/p[0])**2 + 1)
 
-    Returns the tuple that is the argument for the function
-    used for the fitting, the covariance matrix, and the
-    sum of the residual squared
-    """
-    # trim the g(r) data
-    gofr = _trim_gofr(gofr,r0)
+
+def fun_lorentzian_p_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,C2)"""
+    return p[1] / ((r/p[0])**2 + 1) + p[2] * np.exp(-((r/p[0])**2)/2)
+
+def fun_lorentzian_t_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,C2)"""
+    return p[2] / ((r/p[0])**2 + 1) * np.exp(-((r/p[1])**2)/2)
+
+
+def fun_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
+    return  p[1] * np.exp(-((r/p[0])**2))
+
+def fun_exp_p_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
+    return  p[1] * np.exp(-((r**2/p[0]))) +  p[3] * np.exp(-((np.abs(r)/p[2])))
+
+
+def fun_exp_p_exp(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
+    return  p[1] * np.exp(-((np.abs(r)/p[0]))) +  p[3] * np.exp(-((np.abs(r)/p[2])))
+
+
+def fun_exp_t_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
+    return  p[2] * np.exp(-((r**2/p[0]))-((np.abs(r)/p[1]))) 
+
+def fun_gauss_gauss(p,r):
+    """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
+    return  p[1] * np.exp(-((r/p[0])**2)) + p[3] * np.exp(-((r/p[2])**2))
+
+
+####################
+# fitting functions#
+####################
+def fit_curve(x,y,p0,func):
+    """Fits y = func(x|p) with the initial parameters of p0.  func
+    must be of the form y = func(x,p).  uses scipy odr code  """
     
-    
-    data = sodr.Data(gofr.x,gofr.y)
+    data = sodr.Data(x,y)
     model = sodr.Model(func)
     worker = sodr.ODR(data,model,p0)
     out = worker.run()
     out = worker.restart()
     return out
+    
+
+def display_fit(x,y,p,func,fig=None):
+    """Displays the raw data and the fit. fig is an plots.Figure
+    object"""
+    if fig is None:
+        fig = plots.Figure('x','y','fitting')
+        fig.plot(x,np.log(y),label='data')
+        
+    
+    fig.plot(x,np.log(func(p,x)),'--x',label=func.__name__ +  '('+
+             ','.join(['%.1e'%k for k in p])+ ')')
+    
+    return fig
+
+#########################
+# functions to be killed#
+#########################
+
     
 
 

@@ -29,76 +29,11 @@ import bisect
 import itertools
 import matplotlib.pyplot as plts
 import fitting
-
-
-def get_gofr3D(comp_num,conn):
-    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
-    numpy array'''
-
-    gname='gofr3D'
-
-    dset_names = ['bin_count', 'bin_edges']
-    
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    if not len(res) == 1:
-        print len(res)
-        raise util.dbase_error("error looking up computation")
-
-    
-    g = get_gofr_group(res[0][0],gname,comp_num)
-    gofr = np.array(g[dset_names[0]])
-    bins = np.array(g[dset_names[1]])
-    return cord_pairs(bins,gofr)
-
-
-
-
-def make_gofr_2Dv3D(conn):
-    keys = conn.execute("select key from dsets where dtype = 'z'").fetchall()
-    for k in keys:
-        plots.make_2dv3d_plot(k[0],conn,'figures/2Dv3D/%(#)02d.png'%{"#":k[0]})
-
-    
-
-def get_gofr2D(comp_num,conn):
-    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
-    numpy array'''
-
-    dset_names = ['bin_count', 'bin_edges']
-    
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    if not len(res) == 1:
-        print len(res)
-        raise util.dbase_error("error looking up computation")
-    
-    print comp_num
-    F = h5py.File(res[0][0],'r')
-    print "gofr_%(#)07d"%{"#":comp_num}
-    print "gofr_%(#)07d"%{"#":comp_num} in F.keys()
-    g = F["gofr_%(#)07d"%{"#":comp_num}]
-    gofr = np.array(g[dset_names[0]])
-    bins = np.array(g[dset_names[1]])*6.45/60
-    F.close()
-    return cord_pairs(bins,gofr)
-
-    
-def find_peaks(gofr_pairs,expt_spc = None):
-    '''Takes in a pairs object and returns a list of tuples with (x[indx],y[indx],indx)
-
-    expt_spc is the expected spacing of the peaks
-
-    Assumes that the largest peak comes first
-    '''
-
-    # find the largest (assumed to be first) peak
-    
-    
-        
-    if expt_spc is  None:
-        # if no guess given, make a guess based on the location of the first peak
-        pass
-
-
+import general as gen
+import matplotlib
+##################
+#helper functions#
+##################
 def find_peaks_fit(gp,dfun,p):
     """Looks for peaks based on hints from the derivative of the expected function and
     the fit parameters"""
@@ -112,7 +47,7 @@ def find_peaks_fit(gp,dfun,p):
     sz = []
     # find the first max
     indx = np.argmax(gp.y[15:])+15
-    pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
+    pfit = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
 
     lmax.append((pfit.beta[1],pfit.beta[2]))
     diffs.append(gp.x[indx]-pfit.beta[1])
@@ -138,9 +73,9 @@ def find_peaks_fit(gp,dfun,p):
             print "no zero found"
             break
         # convert value into indx
-        indx = val_to_indx(gp.x,crit_p)
+        indx = gen.val_to_indx(gp.x,crit_p)
         # pick out window around that box
-        pfit = fit_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
+        pfit = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
         
 
         # determine if max or min
@@ -174,70 +109,18 @@ def find_peaks_fit(gp,dfun,p):
     
     return lmax,lmin,diffs,sz
 
-
-
-def fit_peak(x,y):
+def fit_quad_to_peak(x,y):
     """Fits a quadratic to the data points handed in """
     def quad(B,x):
         return B[0] *(x -B[1]) ** 2 + B[2]
 
-    beta = (0,np.mean(x),y[val_to_indx(x,np.mean(x))])
+    beta = (0,np.mean(x),y[gen.val_to_indx(x,np.mean(x))])
 
     data = sodr.Data(x,y)
     model = sodr.Model(quad)
     worker = sodr.ODR(data,model,beta)
     out = worker.run()
-
-
-    
-    ## plts.figure()
-    ## plts.plot(x,y)
-    ## plts.plot(x,quad(out.beta,x))
-    ## plts.title(out.beta[1])
     return out
-
-def get_list_gofr (sname,conn,date = None,gtype = 'gofr'):
-    """Takes in a  sample name and an optional string specifying
-    the date of the computations to use"""
-
-    print date
-    print gtype
-    if date is None:
-        return conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
-        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-        dsets.sname = ?",(gtype,sname,)).fetchall()
-    else:
-        return conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
-        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-        dsets.sname = ? and dsets.dtype = 't' and comps.date = ?",(gtype,sname,date)).fetchall()
-
-    
-def get_gofr_by_plane_cps(comp_num,conn):
-    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
-    fname = fname[-1][0]
-    F =  h5py.File(fname)
-    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
-
-    g_l = [cord_pairs(g[c]['bin_edges'][:],g[c]['bin_count'][:]) for c in g]
-
-    
-    del g
-    F.close()
-    return g_l
-
-def get_gofr_by_plane_tmp(comp_num,conn):
-    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchone()
-    
-    F =  h5py.File(fname)
-    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
-
-    temps = [g[c].attrs['temperature'] for c in g]
-
-    
-    del g
-    F.close()
-    return temps
-
 
 def _draw_gofr_hex_lines(ax,r0):
     '''This function will draw on a graph vertical linse where peaks in g(r) are expected
@@ -258,27 +141,73 @@ def _draw_gofr_hex_lines(ax,r0):
         ax.plot((1+ s*lin_scale)*2*r0*np.ones(2),[0 ,3],'m')
         ax.annotate(str(s),xy=(2*r0*(1+s*lin_scale),2.25),xycoords='data',
                     xytext=(-1,0),textcoords='offset points')
+######################
+#extraction functions#
+######################
+def get_gofr3D(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    cord_pairs object (left bin edge,value)'''
+
+    gname='gofr3D'
+
+    dset_names = ['bin_count', 'bin_edges']
     
-def make_2dv3d_plot(key,conn,fname = None):
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+
+    
+    g = get_gofr_group(res[0][0],gname,comp_num)
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])
+    return cord_pairs(bins,gofr)
+def get_gofr2D(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    cord_pairs object (left bin edge,value)'''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+    
+    print comp_num
+    F = h5py.File(res[0][0],'r')
+    print "gofr_%(#)07d"%{"#":comp_num}
+    print "gofr_%(#)07d"%{"#":comp_num} in F.keys()
+    g = F["gofr_%(#)07d"%{"#":comp_num}]
+    gofr = np.array(g[dset_names[0]])
+    bins = np.array(g[dset_names[1]])*6.45/60
+    F.close()
+    return cord_pairs(bins,gofr)
+
+def get_gofr_tmp(fname,comp_num):
+    F = h5py.File(fname,'r')
+    t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
+    F.close()
+    return t
+
+
+
+
+####################
+#plotting functions#
+####################
+def make_2d_gofr_plot(comp_key,conn,fname = None):
     # add error handling on all of these calls
     
     # get comp_number of gofr
-    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
-    and function == 'gofr'",(key,)).fetchall()
-    (g_ck,g_fname) = res[-1]
+    (key,g_fname) = conn.execute("select dset_key,fout from comps where comp_key == ? and function == 'gofr'",(comp_key,)).fetchone()
+    
         
-        
-    # get comp_number of 3D gofr
-    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
-    and function == 'gofr3D'",(key,)).fetchall()
-    (g3D_ck,g3D_fname) = res[-1]
-
     # get dset name
-    (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
+    (sname, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
 
-    print sample_name + " " + str(temp)
-    group = gen.get_gofr_group(g_fname,'gofr',g_ck)
-    group3D = gen.get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
+    print sname + " " + str(temp)
+    group = gen.get_gofr_group(g_fname,'gofr',comp_key)
+
 
 
     # make plot
@@ -287,24 +216,32 @@ def make_2dv3d_plot(key,conn,fname = None):
     
     dset_names = ['bin_count', 'bin_edges']
     fig = plt.figure()
+    
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
-    ax.plot(group[dset_names[1]][:]*6.45/60,group[dset_names[0]])
-    ax.plot(group3D[dset_names[1]],group3D[dset_names[0]])
+    ax.plot(group[dset_names[1]][:],group[dset_names[0]])
+
 
     # finds the location of the maximum, assume to be the first peak
-    d0 = group3D[dset_names[1]][np.argmax(group3D[dset_names[0]])]
-    print np.argmax(group3D[dset_names[0]])
+    d0 = group[dset_names[1]][np.argmax(group[dset_names[0]])]
+    print np.argmax(group[dset_names[0]])
     print d0
-    _draw_gofr_hex_lines(ax,d0/2)
-    ax.set_title(sample_name + " temp: " + str(temp))
+    #_draw_gofr_hex_lines(ax,d0/2)
+    ax.set_title(sname + " temp: " + str(temp) + ' d0' + str(d0))
     ax.set_ylim(0,3)
-    ax.legend(['2D','3D'])
+
     ax.grid(True)
 
     # save figure
     if not fname == None:
+        f_path = '/home/tcaswell/python/figures/' + sname + '/'
+        if not os.path.isdir(f_path):
+            os.makedirs(f_path)
+        
+        fname = f_path + str(key) + '_gofr2D.png'
         fig.savefig(fname)
+
+
      
         
     if istatus:
@@ -312,8 +249,165 @@ def make_2dv3d_plot(key,conn,fname = None):
         plt.show()
     else:
         plt.close(fig)
-        
-        
+
+
+def plot_with_fitting(g_key,conn):
+    """Plots a single g(r) with the fitting function on top
+    
+    
+    """
+
+    res = conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",(g_key,)).fetchone()
+    
+
+    
+    
+    temps = get_gofr_tmp(res[1],res[0]) 
+    print temps
+
+    g = get_gofr2D(res[0],conn) 
+    fits = fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) 
+    
+    
+    istatus = plots.non_i_plot_start()
+
+    fig = plots.Figure('r[$\mu m$]','g(r)','g(r) + fitting temp: %.2f'%temps,func = matplotlib.axes.Axes.step) 
+    
+    
+    fig.plot(g.x,g.y,label='data')
+    fig.plot(g.x[25:],fitting.fun_decay_exp_inv(fits.beta,g.x[25:]),label='fitting')
+    fig.axis((0,12),(0,3))
+    plots.non_i_plot_stop(istatus)
+
+
+###########################
+#function of tmp functions#
+###########################
+def tmp_series_gn2D(comp_list,conn):
+    """Makes plots for g_1 to g_n
+    
+    comp_list : list of 1 element tuple that contain the computation
+    number to be plotted
+    """
+
+    res = [conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",c).fetchone()
+           for c in comp_list]
+
+    res.sort(key=lambda x:x[1])
+    
+    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    print temps
+
+    gofrs = [get_gofr2D(r[0],conn) for r in res]
+    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    peaks = [find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
+             for g,p in zip(gofrs,fits)]
+
+
+    
+    istatus = plots.non_i_plot_start()
+    
+    # make g_n plots for peaks
+    fig,ax = plots.set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(max([len(p[0]) for p in peaks])):
+        pairs = [(t,p[0][j][1]) for (t,p) in itertools.izip(temps,peaks) if len(p[0]) > j]
+        leg_hands.append(ax.plot([p[0] for p in pairs],[p[1]-1 for p in pairs],'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    plots.add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
+
+
+    
+    # make g_n plots for troughs
+    fig,ax = plots.set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(max([len(p[1]) for p in peaks])):
+        pairs = [(t,p[1][j][1]) for (t,p) in itertools.izip(temps,peaks) if len(p[1]) > j]
+        leg_hands.append(ax.plot([p[0] for p in pairs],[p[1]-1 for p in pairs],'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    plots.add_labels(ax,'$g_n$ minimums',r'T [C]','g(peak) -1')
+    
+
+    # make plot for trough locations
+    fig,ax = plots.set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(max([len(p[1]) for p in peaks])):
+        pairs = [(t,p[1][j][0]) for (t,p) in itertools.izip(temps,peaks) if len(p[1]) > j]
+        leg_hands.append(ax.plot([p[0] for p in pairs],[p[1] for p in pairs],'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    plots.add_labels(ax,'minimum locations',r'T [C]','r [$\mu m$]')
+
+
+    # make plot for peak locations
+    fig,ax = plots.set_up_plot()
+    leg_strs = []
+    leg_hands = []
+    for j in range(max([len(p[0]) for p in peaks])):
+        pairs = [(t,p[0][j][0]) for (t,p) in itertools.izip(temps,peaks) if len(p[0]) > j]
+        leg_hands.append(ax.plot([p[0] for p in pairs],[p[1] for p in pairs],'x-'))
+        leg_strs.append('$g_'+str(j)+'$' )
+
+    #ax.legend(leg_hands,leg_strs,loc=0)
+    plots.add_labels(ax,'peak locations',r'T [C]','r [$\mu m$]')
+
+    
+    plots.non_i_plot_stop(istatus)
+    
+    return peaks
+
+
+def tmp_series_fit_plots(comp_list,conn):
+    """Makes plots for g_1 to g_n
+    
+    comp_list : list of 1 element tuple that contain the computation
+    number to be plotted
+    """
+
+    res = [conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",c).fetchone()
+           for c in comp_list]
+
+    res.sort(key=lambda x:x[1])
+    
+    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    print temps
+
+    gofrs = [get_gofr2D(r[0],conn) for r in res]
+    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    
+    
+    istatus = plots.non_i_plot_start()
+
+    fig_xi = plots.Figure('T [C]',r'fitting parameters [$\mu m$]','Fitting parameters') 
+
+    print [2*np.pi/p.beta[1] for p in fits ]
+    
+    fig_xi.plot(temps,[p.beta[0] for p in fits ],
+                    marker='x',label=r'$\xi$')
+    fig_xi.plot(temps,[np.pi*2/p.beta[1] for p in fits ],
+                    marker='x',label=r'$K$')
+    fig_xi.plot(temps,[p.beta[2] for p in fits ],
+                    marker='x',label=r'$C$')
+
+
+    fig_err = plots.Figure('T [C]','errors [diff units]','fitting error')
+    fig_err.plot(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
+    fig_err.plot(temps,[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
+    fig_err.plot(temps,[p.res_var for p in fits ],'-x',label=r'res_var')
+    
+    plots.non_i_plot_stop(istatus)
+
 
 def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
     '''Takes in a sample name and plots all of the g(r) for it '''
@@ -352,12 +446,6 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     
     gn_fig = plt.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
-
-    def get_gofr_tmp(fname,comp_num):
-        F = h5py.File(fname,'r')
-        t = F[gtype + "_%(#)07d"%{"#":comp_num}].attrs['temperature']
-        F.close()
-        return t
     
     temps = [get_gofr_tmp(r[1],r[0]) for r in res]
     tmax = max(temps)
@@ -422,184 +510,13 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
 
     return zip(gn_t,gn_g)
 
-def make_2d_gofr_plot(comp_key,conn,fname = None):
-    # add error handling on all of these calls
-    
-    # get comp_number of gofr
-    (key,g_fname) = conn.execute("select dset_key,fout from comps where comp_key == ? and function == 'gofr'",(comp_key,)).fetchone()
-    
-        
-    # get dset name
-    (sname, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
+####################    
+#by plane functions#
+####################    
 
-    print sname + " " + str(temp)
-    group = gen.get_gofr_group(g_fname,'gofr',comp_key)
-
-
-
-    # make plot
-    istatus = plt.isinteractive();
-    if istatus:plt.ioff()
-    
-    dset_names = ['bin_count', 'bin_edges']
-    fig = plt.figure()
-    ax = fig.add_axes([.1,.1,.8,.8])
-    ax.hold(True)
-    ax.plot(group[dset_names[1]][:],group[dset_names[0]])
-
-
-    # finds the location of the maximum, assume to be the first peak
-    d0 = group[dset_names[1]][np.argmax(group[dset_names[0]])]
-    print np.argmax(group[dset_names[0]])
-    print d0
-    #_draw_gofr_hex_lines(ax,d0/2)
-    ax.set_title(sname + " temp: " + str(temp) + ' d0' + str(d0))
-    ax.set_ylim(0,3)
-
-    ax.grid(True)
-
-    # save figure
-    if not fname == None:
-        f_path = '/home/tcaswell/python/figures/' + sname + '/'
-        if not os.path.isdir(f_path):
-            os.makedirs(f_path)
-        
-        fname = f_path + str(key) + '_gofr2D.png'
-        fig.savefig(fname)
-
-
-     
-        
-    if istatus:
-        plt.ion()
-        plt.show()
-    else:
-        plt.close(fig)
-
-
-def gn2D(comp_lst,conn,fig,txt):
-    
-
-    res = [conn.execute("select comps.comp_key,dsets.temp\
-    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
-           for c in comp_lst]
-
-    
-    
-    temps = [r[1] for r in res]
-    gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
-    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
-    peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
-             for g,p in zip(gofrs,fits)]
-
-
-    fig.plot(temps,np.array([p[0][0][1] for p in peaks])-1,txt)
-
-def tmp_series_gn2D(comp_list,conn):
-    """Makes plots for g_1 to g_n
-    
-    comp_list : list of 1 element tuple that contain the computation
-    number to be plotted
-    """
-
-    res = [conn.execute("select comp_key,fout\
-    from comps where comps.comp_key = ?",c).fetchone()
-           for c in comp_list]
-
-    res.sort(key=lambda x:x[1])
-    
-    def get_gofr_tmp(fname,comp_num):
-        F = h5py.File(fname,'r')
-        t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
-        F.close()
-        return t
-    
-    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
-
-
-    gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
-    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
-    peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
-             for g,p in zip(gofrs,fits)]
-
-
-    
-    istatus = non_i_plot_start()
-    
-    # make g_n plots for peaks
-    fig,ax = set_up_plot()
-    leg_strs = []
-    leg_hands = []
-    for j in range(min([len(p[0]) for p in peaks])):
-        leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
-        leg_strs.append('$g_'+str(j)+'$' )
-
-    #ax.legend(leg_hands,leg_strs,loc=0)
-    add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
-
-
-    
-    # make g_n plots for troughs
-    fig,ax = set_up_plot()
-    leg_strs = []
-    leg_hands = []
-    for j in range(min([len(p[1]) for p in peaks])):
-        leg_hands.append(ax.plot(temps,np.array([p[1][j][1] for p in peaks])-1,'x-'))
-        leg_strs.append('$g_'+str(j)+'$' )
-
-    #ax.legend(leg_hands,leg_strs,loc=0)
-    add_labels(ax,'$g_n$ minimums',r'T [C]','g(peak) -1')
-    
-
-    # make plot for trough locations
-    fig,ax = set_up_plot()
-    leg_strs = []
-    leg_hands = []
-    for j in range(min([len(p[1]) for p in peaks])):
-        leg_hands.append(ax.plot(temps,np.array([p[1][j][0] for p in peaks]),'x-'))
-        leg_strs.append('$g_'+str(j)+'$' )
-
-    #ax.legend(leg_hands,leg_strs,loc=0)
-    add_labels(ax,'minimum locations',r'T [C]','r [$\mu m$]')
-
-
-    # make plot for peak locations
-    fig,ax = set_up_plot()
-    leg_strs = []
-    leg_hands = []
-    for j in range(min([len(p[0]) for p in peaks])):
-        leg_hands.append(ax.plot(temps,np.array([p[0][j][0] for p in peaks]),'x-'))
-        leg_strs.append('$g_'+str(j)+'$' )
-
-    #ax.legend(leg_hands,leg_strs,loc=0)
-    add_labels(ax,'peak locations',r'T [C]','r [$\mu m$]')
-
-    
-    non_i_plot_stop(istatus)
-    
-    return peaks
-
-def make_gofr_by_plane_plots(comp,conn):
-    istatus = non_i_plot_start()
-    (fig,ax) = set_up_plot()
-    
-    gc = gen.get_gofr_by_plane_cps(comp,conn)
-    temps = gen.get_gofr_by_plane_tmp(comp,conn)
-    dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
-    (temp,dtype,fname) = conn.execute("select temp,dtype,fname from dsets where key = ?",(dset,)).fetchone()
-
-    wind = 30
-    max_indx = [np.argmax(g.y[5:])+5 for g in gc]
-    betas = [gen.fit_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
-    ax.step(temps,[b.beta[2] for b in betas])
-    ax.step(temps,[np.max(g.y) for g in gc])
-    #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
-    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
-    
-    non_i_plot_stop(istatus)
 def make_gofr_by_plane(d_lst,conn):
-    istatus = non_i_plot_start()
-    (fig,ax) = set_up_plot()
+    istatus = plots.non_i_plot_start()
+    (fig,ax) = plots.set_up_plot()
     leg_strs = []
     leg_hand = []
     cmap = color_mapper(np.min([d[1] for d in d_lst]),np.max([d[1] for d in d_lst]))
@@ -613,46 +530,130 @@ def make_gofr_by_plane(d_lst,conn):
             leg_strs.append(str(d[1]))
             
     ax.legend(leg_hand,leg_strs)
-    non_i_plot_stop(istatus)
+    plots.non_i_plot_stop(istatus)
+
+def make_gofr_by_plane_plots(comp,conn):
+    istatus = plots.non_i_plot_start()
+    (fig,ax) = plots.set_up_plot()
+    
+    gc = gen.get_gofr_by_plane_cps(comp,conn)
+    temps = gen.get_gofr_by_plane_tmp(comp,conn)
+    dset = conn.execute("select dset_key from comps where comp_key = ?",(comp,)).fetchone()[0]
+    (temp,dtype,fname) = conn.execute("select temp,dtype,fname from dsets where key = ?",(dset,)).fetchone()
+
+    wind = 30
+    max_indx = [np.argmax(g.y[5:])+5 for g in gc]
+    betas = [gen.fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
+    ax.step(temps,[b.beta[2] for b in betas])
+    ax.step(temps,[np.max(g.y) for g in gc])
+    #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
+    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
+    
+    plots.non_i_plot_stop(istatus)
+
+def get_gofr_by_plane_tmp(comp_num,conn):
+    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchone()
+    
+    F =  h5py.File(fname)
+    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+
+    temps = [g[c].attrs['temperature'] for c in g]
+
+    
+    del g
+    F.close()
+    return temps
+def get_gofr_by_plane_cps(comp_num,conn):
+    fname = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    fname = fname[-1][0]
+    F =  h5py.File(fname)
+    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+
+    g_l = [cord_pairs(g[c]['bin_edges'][:],g[c]['bin_count'][:]) for c in g]
+
+    
+    del g
+    F.close()
+    return g_l
+###################
+#2D v 3D functions#
+###################
+                   
+def make_gofr_2Dv3D(conn):
+    keys = conn.execute("select key from dsets where dtype = 'z'").fetchall()
+    for k in keys:
+        plots.make_2dv3d_plot(k[0],conn,'figures/2Dv3D/%(#)02d.png'%{"#":k[0]})
 
     
 
 
-def gn_type_plots(sname,conn):
-
-    istatus = non_i_plot_start()
-    
-    # make g_n plots for peaks
-    fig,ax = set_up_plot()
-    leg_strs = []
-    leg_hands = []
 
 
-    for t in ['t','z']:
-        res = conn.execute("select comps.comp_key,dsets.temp\
-        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
-        dsets.sname = ? and dtype = ?",('gofr',sname,t,)
-                       ).fetchall()
-
-
-        temps = [r[1] for r in res]
-        gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
-        fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
-        peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
-                 for g,p in zip(gofrs,fits)]
 
 
     
+def make_2dv3d_plot(key,conn,fname = None):
+    # add error handling on all of these calls
+    
+    # get comp_number of gofr
+    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
+    and function == 'gofr'",(key,)).fetchall()
+    (g_ck,g_fname) = res[-1]
+        
+        
+    # get comp_number of 3D gofr
+    res = conn.execute("select comp_key,fout from comps where dset_key == ?\
+    and function == 'gofr3D'",(key,)).fetchall()
+    (g3D_ck,g3D_fname) = res[-1]
 
-        for j in range(min([len(p[0]) for p in peaks])):
-            leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
-            leg_strs.append('$g_'+str(j)+'$ ' + t )
+    # get dset name
+    (sample_name, temp) = conn.execute("select sname,temp from dsets where key == ? ",(key,)).fetchone()
+
+    print sample_name + " " + str(temp)
+    group = gen.get_gofr_group(g_fname,'gofr',g_ck)
+    group3D = gen.get_gofr_group(g3D_fname,'gofr3D',g3D_ck)
 
 
+    # make plot
+    istatus = plt.isinteractive();
+    if istatus:plt.ioff()
+    
+    dset_names = ['bin_count', 'bin_edges']
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.plot(group[dset_names[1]][:]*6.45/60,group[dset_names[0]])
+    ax.plot(group3D[dset_names[1]],group3D[dset_names[0]])
 
-    ax.legend(leg_hands,leg_strs)
-    add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
+    # finds the location of the maximum, assume to be the first peak
+    d0 = group3D[dset_names[1]][np.argmax(group3D[dset_names[0]])]
+    print np.argmax(group3D[dset_names[0]])
+    print d0
+    _draw_gofr_hex_lines(ax,d0/2)
+    ax.set_title(sample_name + " temp: " + str(temp))
+    ax.set_ylim(0,3)
+    ax.legend(['2D','3D'])
+    ax.grid(True)
 
+    # save figure
+    if not fname == None:
+        fig.savefig(fname)
+     
+        
+    if istatus:
+        plt.ion()
+        plt.show()
+    else:
+        plt.close(fig)
+        
+        
+
+    
+
+
+######
+#s(q)#
+######
 
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
@@ -702,3 +703,90 @@ def make_sofq_3D_plot(key,conn,Q):
         print "closing figure"
         plt.close(fig)
         plt.close(gn_fig)
+
+
+
+
+
+
+###########
+# fitting # 
+###########
+
+def _trim_gofr(gofr,r0):
+    """     Takes in gofr as a cord_pairs and r0 in
+    units of 1/d, d as determined by the location
+    of the first peak.
+
+    Returns a cords_pair object with g(r>r0) 
+    """
+    # find the first peak
+    d0 = gofr.x[np.argmax(gofr.y[15:])+15]
+
+    print "the Diameter is " + str(d0)
+
+    # convert r0 to real units
+    r0 *=d0
+
+    
+    
+    # cut the data at r0
+    r_arg = np.argmax([v for v in gofr.x if v<= r0])
+    gofr_trim = cord_pairs(gofr.x[r_arg:],gofr.y[r_arg:])
+
+
+
+    return gofr_trim
+
+def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
+    """
+    Fits to 
+    Takes in gofr as a cord_pairs and r0 in
+    units of d, d as determined by the location
+    of the first peak.
+
+    Returns the tuple that is the argument for the function
+    used for the fitting, the covariance matrix, and the
+    sum of the residual squared
+    """
+    # trim the g(r) data
+    gofr = _trim_gofr(gofr,r0)
+    
+    return fitting.fit_curve(gofr.x,gofr.y,p0,func)
+ 
+# kill?
+
+def gn_type_plots(sname,conn):
+
+    istatus = plots.non_i_plot_start()
+    
+    # make g_n plots for peaks
+    fig,ax = plots.set_up_plot()
+    leg_strs = []
+    leg_hands = []
+
+
+    for t in ['t','z']:
+        res = conn.execute("select comps.comp_key,dsets.temp\
+        from comps,dsets where comps.dset_key = dsets.key and comps.function=? and\
+        dsets.sname = ? and dtype = ?",('gofr',sname,t,)
+                       ).fetchall()
+
+
+        temps = [r[1] for r in res]
+        gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
+        fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+        peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
+                 for g,p in zip(gofrs,fits)]
+
+
+    
+
+        for j in range(min([len(p[0]) for p in peaks])):
+            leg_hands.append(ax.plot(temps,np.array([p[0][j][1] for p in peaks])-1,'x-'))
+            leg_strs.append('$g_'+str(j)+'$ ' + t )
+
+
+
+    ax.legend(leg_hands,leg_strs)
+    plots.add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
