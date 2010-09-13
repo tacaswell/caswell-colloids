@@ -73,8 +73,22 @@ class Figure:
         self.leg_strs.append(txt)
         self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
         plt.draw()
-
-
+        
+    def err_plot(self,x,y,y_err,x_err,*args,**kwargs):
+        if 'label' in kwargs:
+            txt = kwargs['label']
+            del kwargs['label']
+        else:
+            txt = str(len(self.leg_hands))
+        
+        self.leg_hands.append(self.ax.errorbar(x,y,y_err,x_err,*args,**kwargs))
+        self.leg_strs.append(txt)
+        self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
+        plt.draw()
+    def axis(self,x_lim,y_lim):
+        self.ax.set_xlim(x_lim)
+        self.ax.set_ylim(y_lim)
+        plt.draw()
 class color_mapper:
     def __init__(self,mn,mx,name = 'jet'):
         self._mn = mn
@@ -117,5 +131,12 @@ def set_up_plot():
 
     
 
-
-
+import datetime
+import os
+import os.path
+def save_figure(fname,fig):
+    """Saves a figure to the proper date folder """
+    spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
+    if not  os.path.isdir(spath):
+        os.makedirs(spath,0755)
+    fig.savefig(spath + fname)
