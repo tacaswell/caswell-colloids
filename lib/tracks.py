@@ -21,23 +21,19 @@ import plots
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import general as gen
+from general import ff
+from general import fd
 
 
 
-def _ff(n):
-    """Formats frame names """
-    return "frame%(#)06d"%{"#":n}
-
-def _fd(str_,n):
-    """ formats dset names"""
-    return str_ + "_%(#)07d"%{"#":n}
 def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
     """starting with particle part_num in frame_num extracts the path
     going forwards"""
-    trk.append((F[_ff(frame_num)][_fd('x',iden_group)][part_num],
-                F[_ff(frame_num)][_fd('y',iden_group)][part_num]))
+    trk.append((F[ff(frame_num)][fd('x',iden_group)][part_num],
+                F[ff(frame_num)][fd('y',iden_group)][part_num]))
     
-    nxt = F[_ff(frame_num)][_fd('next_part',track_group)][part_num]
+    nxt = F[ff(frame_num)][fd('next_part',track_group)][part_num]
     
     if  nxt != -1:
         extract_track(F,frame_num+1,nxt,track_group,iden_group,trk)
@@ -46,9 +42,9 @@ def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
 def print_info(F,frame_num,part_num,comp_num):
     """Prints returns (prev_part,next_part,track_id) for the given
     particle and computation"""
-    return (F[_ff(frame_num)][_fd('prev_part',comp_num)][part_num],
-            F[_ff(frame_num)][_fd('next_part',comp_num)][part_num],
-            F[_ff(frame_num)][_fd('track_id',comp_num)][part_num])
+    return (F[ff(frame_num)][fd('prev_part',comp_num)][part_num],
+            F[ff(frame_num)][fd('next_part',comp_num)][part_num],
+            F[ff(frame_num)][fd('track_id',comp_num)][part_num])
 
 
 def plot_tracks(track_comp_key,region,init_frame,conn):
@@ -75,8 +71,12 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
     try:
         
         # extract list of particles in ROI
-        x = F[_ff(init_frame)][_fd('x',iden_key)][:]
-        y = F[_ff(init_frame)][_fd('y',iden_key)][:]
+        x = F[ff(init_frame)][fd('x',iden_key)][:]
+        y = F[ff(init_frame)][fd('y',iden_key)][:]
+
+        dtime = F[ff(init_frame)].attrs['dtime']
+
+        sp_scale = gen.extract_spatial_calibration(F[ff(init_frame)])
 
         ind = matplotlib.mlab.find((x>region[0]) * (y>region[1]) \
               * (x<(region[0] + region[2] ) )*( y<(region[1] + region[3])))
@@ -89,24 +89,30 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         # set up figure
         (fig,ax) = plots.set_up_plot()
 
-        ax.set_title(str(d_temp))
+        ax.set_title('T: ' + str(d_temp) + ' frame: ' + str(init_frame)
+                     + ' dtime: ' + str(dtime) + 'ms')
 
         def trk_len_hash(trk):
             return len(trk)
         def trk_disp_hash(trk):
             return np.sqrt((np.sum(np.array(trk[-1]) - np.array(trk[0]))**2))
 
-        trk_hash = trk_disp_hash
+        trk_hash = trk_len_hash
         
         t_len = [trk_hash(trk) for trk in tracks]
         cm = plots.color_mapper(min(t_len),max(t_len))
+        print (min(t_len),max(t_len))
+        
         # loop over tracks and plot
-        [ax.plot([t[0] for t in trk],[t[1] for t in trk],'-',
+        [ax.plot(np.array([t[0] for t in trk])*sp_scale,
+                 np.array([t[1] for t in trk])*sp_scale,
+                 '-',
                  color=cm.get_color(trk_hash(trk)))
          for trk in tracks]
 
         # plot the starting points
-        ax.plot(x[ind],y[ind],'xk')
+        ax.plot(np.array(x[ind])*sp_scale,
+                np.array(y[ind])*sp_scale,'xk')
         
         ax.set_aspect('equal')
         plt.draw()
@@ -115,3 +121,5 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         # close hdf file and clean up
         F.close()
         del F
+
+
