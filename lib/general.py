@@ -226,3 +226,16 @@ def ff(n):
 def fd(str_,n):
     """ formats dset names"""
     return str_ + "_%(#)07d"%{"#":n}
+
+def extract_spatial_calibration(group):
+    """group : a open valid hdf group pointing in to a frame
+
+    returns the spatial calibration
+    """
+
+    if not group.attrs['spatial-calibration-state']:
+        raise Error("Spatial calibration not enabled")
+
+    
+
+    return group.attrs['spatial-calibration-x']
