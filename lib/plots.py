@@ -50,14 +50,18 @@ class Figure:
         self.fig,self.ax = set_up_plot()
         self.leg_hands = []
         self.leg_strs = []
+        self.cmap = None
+        if 'cmap' in kwargs:
+            self.cmap = kwargs['cmap']
         if 'func' in kwargs:
             self.func = kwargs['func']
         else:
             self.func = matplotlib.axes.Axes.plot
         if 'count' in kwargs:
             count = kwargs['count']
-            cmap = cm.get_cmap('jet')
-            self.ax.set_color_cycle([cmap(j/(count-1)) for j in range(count)] )
+            if self.cmap is None:
+                self.cmap = cm.get_cmap('winter')
+            self.ax.set_color_cycle([self.cmap(j/(count-1)) for j in range(count)] )
         
         
         add_labels(self.ax,title,xlabel,ylabel)
@@ -68,7 +72,9 @@ class Figure:
             del kwargs['label']
         else:
             txt = str(len(self.leg_hands))
-        
+        if not ('lw' in kwargs or 'linewidth' in kwargs):
+            kwargs['lw'] = 3
+
         self.leg_hands.append(self.func(self.ax,x,y,*args,**kwargs))
         self.leg_strs.append(txt)
         self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
@@ -80,7 +86,8 @@ class Figure:
             del kwargs['label']
         else:
             txt = str(len(self.leg_hands))
-        
+        if not ('lw' in kwargs or 'linewidth' in kwargs):
+            kwargs['lw'] = 3
         self.leg_hands.append(self.ax.errorbar(x,y,y_err,x_err,*args,**kwargs))
         self.leg_strs.append(txt)
         self.ax.legend(self.leg_hands,self.leg_strs,loc=0)
