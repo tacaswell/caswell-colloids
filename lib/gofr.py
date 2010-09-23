@@ -162,6 +162,7 @@ def get_gofr3D(comp_num,conn):
     gofr = np.array(g[dset_names[0]])
     bins = np.array(g[dset_names[1]])
     return cord_pairs(bins,gofr)
+
 def get_gofr2D(comp_num,conn):
     '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
     cord_pairs object (left bin edge,value)'''
@@ -182,6 +183,32 @@ def get_gofr2D(comp_num,conn):
     bins = np.array(g[dset_names[1]])*6.45/60
     F.close()
     return cord_pairs(bins,gofr)
+
+def get_gofr2D_rho(comp_num,conn):
+    '''Takes in computation number and database connection and extracts the given g(r) and returns it as a
+    cord_pairs object (left bin edge,value)'''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+    
+    
+    try:
+        scale = 6.45/60
+        F = h5py.File(res[0][0],'r')
+        g = F["gofr_%(#)07d"%{"#":comp_num}]
+        rho = g.attrs['rho']/(scale**2)
+        
+        gofr = np.array(g[dset_names[0]])
+        bins = np.array(g[dset_names[1]])*scale
+ 
+    finally:
+        F.close()
+
+    return cord_pairs(bins,gofr),rho
 
 def get_gofr_tmp(fname,comp_num):
     F = h5py.File(fname,'r')
@@ -267,7 +294,7 @@ def plot_with_fitting(g_key,conn):
     print temps
 
     g = get_gofr2D(res[0],conn) 
-    fits = fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) 
+    fits = fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) 
     
     
     istatus = plots.non_i_plot_start()
@@ -301,7 +328,7 @@ def tmp_series_gn2D(comp_list,conn):
     print temps
 
     gofrs = [get_gofr2D(r[0],conn) for r in res]
-    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
     peaks = [find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
              for g,p in zip(gofrs,fits)]
 
@@ -384,7 +411,7 @@ def tmp_series_fit_plots(comp_list,conn):
     print temps
 
     gofrs = [get_gofr2D(r[0],conn) for r in res]
-    fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
     
     
     istatus = plots.non_i_plot_start()
@@ -395,19 +422,27 @@ def tmp_series_fit_plots(comp_list,conn):
     
     fig_xi.plot(temps,[p.beta[0] for p in fits ],
                     marker='x',label=r'$\xi$')
-    fig_xi.plot(temps,[np.pi*2/p.beta[1] for p in fits ],
+    fig_xi.plot(temps,[(np.pi*2)/p.beta[1] for p in fits ],
                     marker='x',label=r'$K$')
     fig_xi.plot(temps,[p.beta[2] for p in fits ],
                     marker='x',label=r'$C$')
 
-
+    
     fig_err = plots.Figure('T [C]','errors [diff units]','fitting error')
     fig_err.plot(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
     fig_err.plot(temps,[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
     fig_err.plot(temps,[p.res_var for p in fits ],'-x',label=r'res_var')
+
+    fig_b = plots.Figure('T [C]',r'$b-1$','$g(r)$ shift') 
+    fig_b.plot(temps,[p.beta[4]-1 for p in fits ],
+                    marker='x',label=r'$b-1$')
+
+
     
     plots.non_i_plot_stop(istatus)
 
+
+    print [(np.pi*2)/p.beta[1] for p in fits ]
 
 def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
     '''Takes in a sample name and plots all of the g(r) for it '''
@@ -655,6 +690,106 @@ def make_2dv3d_plot(key,conn,fname = None):
 #s(q)#
 ######
 
+def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
+    
+    r = conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",(comp_key,)).fetchone()
+    
+    
+    
+    
+    temp = get_gofr_tmp(r[1],r[0])
+    
+
+    (gofr,rho) = get_gofr2D_rho(r[0],conn)
+    wind = 30
+    indx = np.argmax(gofr.y[15:])+15
+    pfit = fit_quad_to_peak(gofr.x[indx-wind:indx+wind],gofr.y[indx-wind:indx+wind])
+    
+    print pfit.beta[1]
+    print rho
+    
+    q_vec = 2*np.pi *np.linspace(.2,5 ,500)
+
+    S = compute_sofq(gofr,rho*.25,q_vec)
+
+    if fig_sofq is None:
+        if length is None:
+            fig_sofq = plots.Figure(r'$k\sigma/2\pi$',r'$S(k)$','test',cmap=cmap)
+        else:
+            fig_sofq = plots.Figure(r'$k\sigma/2\pi$',r'$S(k)$','test',count=length,cmap=cmap)
+    
+    fig_sofq.plot(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
+    
+    
+
+    return fig_sofq
+
+def plot_sofq_series(comp_list,conn,cmap=None):
+
+
+    c0 = comp_list.pop(0)
+    fig = plot_sofq(c0[0],conn,None,len(comp_list)+1,cmap=cmap)
+    for c in comp_list:
+        plot_sofq(c[0],conn,fig)
+
+        
+    comp_list.reverse()
+    comp_list.append(c0)
+    comp_list.reverse()
+
+def get_max_sofq_loc(comp_list,conn):
+    
+    res = [conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",comp_key).fetchone()
+           for comp_key in comp_list]
+    
+    
+    
+    
+    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    
+
+    g_r = [get_gofr2D_rho(r[0],conn) for r in res]
+    
+        
+    q_vec = 2*np.pi *np.linspace(.2,5 ,500)
+
+    S = [compute_sofq(gofr,rho*.25,q_vec) for gofr,rho in g_r]
+    
+
+    
+    #    return [q_vec[np.argmax(s)]/(2*np.pi) for s in S],temps
+    return [np.max(s)for s in S],temps
+    
+def compute_sofq(gofr,rho,q_vec):
+    '''Computes the structure factor from the 
+    see PRE 81 041305
+
+    s(q) = 1 + \rho \tilde{h}(q)
+    \tilde{h}(q) = (2 \pi)^{d/2} \int_0^\infty r^{d-1} h(r) \frac{J_{d/2}}{(qr)^{d/2}} dr
+
+    which for a 3D sample,
+
+    s(q) = 1 + \rho 4\pi \int_0^\infty \frac{r}{k} \sin(kr) h(r)
+    
+    gofr : a cord_pair object
+    q_vec : an iterable of q values to compute the transform at
+    '''
+
+
+    r = gofr.x
+    h = gofr.y-1
+
+    # kludge to fix issue with doubled particles
+    #h[0:5] = 0
+
+
+    
+    S = [ 1 + (rho / q) * np.sum(r * np.sin(q*r) * h) for q in q_vec]
+
+    return S
+    
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
     res = conn.execute("select comp_key from comps where dset_key=? and function='gofr3D'",(key,)).fetchall()
@@ -775,7 +910,7 @@ def gn_type_plots(sname,conn):
 
         temps = [r[1] for r in res]
         gofrs = [gen.get_gofr2D(r[0],conn) for r in res]
-        fits = [fitting.fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+        fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
         peaks = [gen.find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
                  for g,p in zip(gofrs,fits)]
 
