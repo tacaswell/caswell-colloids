@@ -70,7 +70,7 @@ def plot_vanHove(comp_lst,time_step,conn):
                
 def plot_vanHove_pn(comp_lst,time_step,conn):
     ''' '''
-
+    
     cm = plt.color_mapper(27,33)
     fig =  plt.Figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
   
@@ -92,10 +92,127 @@ def plot_vanHove_pn(comp_lst,time_step,conn):
         Fin.close()
         del Fin
 
+def extract_vanHove(c,conn,time_step,count_cut,wind=1):
+    """
+    Function to encapsulate extracting a vanHove at a given time step.
+    The actual time difference will always be less than requested due
+    to rounding and finite sampling rates.
+
+    This function takes care of looking up the correct files and dealing with
+    the hdf layer.
+    """
+    (fin,) = conn.execute("select fout from comps where comp_key = ?",c).fetchone()
+    Fin = h5py.File(fin,'r')
+    g = Fin[fd('vanHove',c[0])]
+
+    temp = g.attrs['temperature']
+    dtime = g.attrs['dtime']
+    j = int(time_step/dtime)
+    print j
+
+    (edges,count,x_lim) = _extract_vanHove(g,j,count_cut,wind)
+    
+    del g
+    Fin.close()
+    del Fin
+        
     
 
-        
-             
+    return edges,count,temp,dtime,x_lim
+
+def _extract_vanHove(g,j,count_cut,wind):
+    """
+    Does the actual work of extracting the proper data set from an open
+    hdf group object.
+
+    The x and y data are merged, further binned, and trimmed
+
+    g hdf group object
+    j the time step to extract
+    count_cut the minimum number of counts to have for the bin to be kept
+    wind how many bins to sum togethur
+    """
+    count = g[fd('step',j)]['y']['disp_count'][:]
+    # get better statistics
+    count += g[fd('step',j)]['x']['disp_count'][:]
+    #        count += count[::-1]
+
+    edges = g[fd('step',j)]['y']['disp_edges'][:]
+    
+    edges = np.array([np.mean(edges[j:j+wind]) for j in range(1,len(count)-wind,wind)])
+    count = np.array([np.sum(count[j:j+wind]) for j in range(1,len(count)-wind,wind)])
+
+    x_lim = (np.min(edges),np.max(edges))
+
+    edges = edges[count>count_cut]
+    count = count[count>count_cut]
+
+    return edges,count,x_lim
+
+def _alpha2(edges,count):
+    """
+    Computes the \alpha_2 value for the distribution
+    """
+    # normalize count
+    tmp_count = count/np.sum(count)
+    return np.mean((edges**4) *tmp_count)/(3*np.mean((edges**2)*tmp_count)) -1
+
+
+def compute_alpha(comp,conn):
+    """
+    Takes in a computation number, opens the hdf file, extracts all the vanHove distributions
+    an computes alpha2 for them.
+
+    Returns a list of tuples(wait_time,alpha2) and the temperature
+    """
+    
+    (fin,) = conn.execute("select fout from comps where comp_key = ?",comp).fetchone()
+    (max_step,) = conn.execute("select max_step from vanHove_prams where comp_key = ?",comp).fetchone()
+    Fin = h5py.File(fin,'r')
+    g = Fin[fd('vanHove',comp[0])]
+
+    temp = g.attrs['temperature']
+    dtime = g.attrs['dtime']
+
+    a = []
+    for j in range(0,max_step):
+        (edges,count,junk) = _extract_vanHove(g,j+1,50,5)
+        a_tmp = _alpha2(edges,count)
+        if not np.isnan(a_tmp):
+            a.append((dtime*(j+1),a_tmp))
+    
+    del g
+    Fin.close()
+    del Fin
+
+    return a,temp
+def plot_alpha2(comp_list,conn):
+    """
+    Takes in a comp_list and plots the alpha2().
+
+    returns a list of the compute_alpha results
+    """
+    a_lst = [compute_alpha(c,conn) for c in comp_list]
+    _plot_alpha2(a_lst)
+
+    return a_lst
+
+def _plot_alpha2(a_list):
+    """
+    plots alpha2 from the list of outputs of compute_alpha handed in
+    """
+    cm = plt.color_mapper(27,33)
+    fig =  plt.Figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
+
+    for a,temp in a_list:
+        dt,a2 = zip(*a)
+        fig.plot(dt,a2,
+                 label=str(temp),
+                 color=cm.get_color(temp)
+                 )
+    
+    
+
 def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gauss):
     '''Plots a grid array of the Von Hove functions at the time step
     given for all of the comps in the comp_lst'''
@@ -110,30 +227,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     outs = []
     tmps = []
     for c in comp_lst:
-        (fin,) = conn.execute("select fout from comps where comp_key = ?",c).fetchone()
-        Fin = h5py.File(fin,'r')
-        g = Fin[fd('vanHove',c[0])]
-        
-        temp = g.attrs['temperature']
-        dtime = g.attrs['dtime']
-        j = int(time_step/dtime)
-        print j
-        count = g[fd('step',j)]['y']['disp_count'][:]
-        # get better statistics
-        count += g[fd('step',j)]['x']['disp_count'][:]
-        #        count += count[::-1]
-        
-        edges = g[fd('step',j)]['y']['disp_edges'][:]
-
-        
-        edges = np.array([np.mean(edges[j:j+wind]) for j in range(1,len(count)-wind,wind)])
-        count = np.array([np.sum(count[j:j+wind]) for j in range(1,len(count)-wind,wind)])
-
-        x_lim = (np.min(edges),np.max(edges))
-        
-        edges = edges[count>50]
-        count = count[count>50]
-    
+        (edges,count,temp,dtime,x_lim) = extract_vanHove(c,conn,time_step,50,wind)
         if len(count) < 50:
             break
         #count = count/np.sum(count)
@@ -158,14 +252,12 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
         ax.step(edges,np.log((count)),color=cm.get_color(temp))
         ax.set_title('%.2f'%temp + ' dtime:%d ms'%dtime)
         ax.set_xlim(x_lim)
-        del g
-        Fin.close()
-        del Fin
         plt_count += 1
 
     mplt.draw()
 
     return outs,tmps
+
 def figure_out_grid(tot):
     """Computes the 'ideal' grid dimensions for the total number of
     graphs handed in"""
