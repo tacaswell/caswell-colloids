@@ -155,10 +155,16 @@ def _alpha2(edges,count):
     """
     # normalize count
     tmp_count = count/np.sum(count)
-    return np.mean((edges**4) *tmp_count)/(3*np.mean((edges**2)*tmp_count)) -1
+    return (
+        np.sum((edges**4) *tmp_count )/
+            (
+            (5/3)*
+                np.sum((edges**2)*tmp_count)
+                **2)
+        ) -1
 
 
-def compute_alpha(comp,conn):
+def compute_alpha(comp,conn,wind ,min_count ):
     """
     Takes in a computation number, opens the hdf file, extracts all the vanHove distributions
     an computes alpha2 for them.
@@ -173,10 +179,10 @@ def compute_alpha(comp,conn):
 
     temp = g.attrs['temperature']
     dtime = g.attrs['dtime']
-
+    dtime = 1
     a = []
     for j in range(0,max_step):
-        (edges,count,junk) = _extract_vanHove(g,j+1,50,5)
+        (edges,count,junk) = _extract_vanHove(g,j+1,min_count,wind)
         a_tmp = _alpha2(edges,count)
         if not np.isnan(a_tmp):
             a.append((dtime*(j+1),a_tmp))
@@ -186,13 +192,13 @@ def compute_alpha(comp,conn):
     del Fin
 
     return a,temp
-def plot_alpha2(comp_list,conn):
+def plot_alpha2(comp_list,conn,wind,min_count):
     """
     Takes in a comp_list and plots the alpha2().
 
     returns a list of the compute_alpha results
     """
-    a_lst = [compute_alpha(c,conn) for c in comp_list]
+    a_lst = [compute_alpha(c,conn,wind,min_count) for c in comp_list]
     _plot_alpha2(a_lst)
 
     return a_lst
@@ -207,11 +213,63 @@ def _plot_alpha2(a_list):
     for a,temp in a_list:
         dt,a2 = zip(*a)
         fig.plot(dt,a2,
-                 label=str(temp),
+                 label='%.2f'%temp,
                  color=cm.get_color(temp)
                  )
     
+
+
+def plot_vanHove_dt(comp,conn,start,step_size,steps):
+    """
+    Plots a grid array of the Von Hove distributions of a single computation
+    at different times in steps even steps from the first to last.
+    """
+        
+    (fin,) = conn.execute("select fout from comps where comp_key = ?",comp).fetchone()
+    (max_step,) = conn.execute("select max_step from vanHove_prams where comp_key = ?",comp).fetchone()
+    Fin = h5py.File(fin,'r')
+    g = Fin[fd('vanHove',comp[0])]
+
+    temp = g.attrs['temperature']
+    dtime = g.attrs['dtime']
+
+
+    #  istatus = plt.non_i_plot_start()
     
+    fig = mplt.figure()
+    fig.suptitle(r'van Hove dist temp: %.2f dtime: %d'% (temp,dtime))
+    dims = figure_out_grid(steps)
+    
+    plt_count = 1
+    outs = []
+    tmps = []
+    for j in range(start,start+step_size*steps, step_size):
+        (edges,count,x_lim) = _extract_vanHove(g,j+1,1,5)
+        if len(count) < 50:
+            plt_count += 1
+            continue
+        #count = count/np.sum(count)
+        
+        sp_arg = dims +(plt_count,)
+        ax = fig.add_subplot(*sp_arg)
+        ax.grid(True)
+
+        
+        alpha = _alpha2(edges,count)
+        
+        ax.set_ylabel(r'$\log{P(N)}$')
+        ax.step(edges,np.log((count/np.sum(count))),lw=2)
+        ax.set_title(r'$\alpha_2 = %.2f$'%alpha + ' j:%d '%j  )
+        ax.set_xlim(x_lim)
+        plt_count += 1
+
+    mplt.draw()
+
+    # plt.non_i_plot_start(istatus)
+
+    del g
+    Fin.close()
+    del Fin
 
 def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gauss):
     '''Plots a grid array of the Von Hove functions at the time step
