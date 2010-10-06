@@ -179,7 +179,7 @@ def compute_alpha(comp,conn,wind ,min_count ):
 
     temp = g.attrs['temperature']
     dtime = g.attrs['dtime']
-    dtime = 1
+    
     a = []
     for j in range(0,max_step):
         (edges,count,junk) = _extract_vanHove(g,j+1,min_count,wind)
@@ -208,7 +208,7 @@ def _plot_alpha2(a_list):
     plots alpha2 from the list of outputs of compute_alpha handed in
     """
     cm = plt.color_mapper(27,33)
-    fig =  plt.Figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
+    fig =  plt.Figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
 
     for a,temp in a_list:
         dt,a2 = zip(*a)
@@ -217,8 +217,30 @@ def _plot_alpha2(a_list):
                  color=cm.get_color(temp)
                  )
     
+def plot_alpha2_grid(lsts,conn,title):
+    ''' plots a grid of alpha2 plots.  Each entry in lsts is a pair
+    the first entry is a list of 3-tuples that are (vanHove key, wind,min_count) and
+    the second entry is a string for the title'''
+    cm = plt.color_mapper(27,33)
+    fig = mplt.figure()
+    fig.suptitle(title)
+    dims = figure_out_grid(len(lsts))
+    
+    plt_count = 1
+    for lst,t in lsts:
+        sp_arg = dims +(plt_count,)
+        ax = fig.add_subplot(*sp_arg)
+        ax.grid(True)
+        a_list = [compute_alpha(c,conn,wind,min_count) for (c,wind,min_count) in lst]
 
 
+        for a,temp in a_list:
+            dt,a2 = zip(*a)
+            ax.step(dt,a2,color=cm.get_color(temp))
+            
+        plt_count +=1
+        
+    mplt.draw()
 def plot_vanHove_dt(comp,conn,start,step_size,steps):
     """
     Plots a grid array of the Von Hove distributions of a single computation
