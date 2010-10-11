@@ -21,17 +21,20 @@ import sqlite3
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import random
+
 import itertools
-import h5py
+
 import numpy as np
-import math
-import util
+
+
 import itertools
 import os
 import os.path
 import general as gen
-import fitting
+
+
+
+import datetime
 
 
 
@@ -138,9 +141,7 @@ def set_up_plot():
 
     
 
-import datetime
-import os
-import os.path
+
 def save_figure(fname,fig):
     """Saves a figure to the proper date folder """
     spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
