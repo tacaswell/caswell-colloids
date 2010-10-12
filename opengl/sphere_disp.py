@@ -90,6 +90,8 @@ class GLWidget(QtOpenGL.QGLWidget):
         self.v_range = 2
         self.lastPos = QtCore.QPoint()
 
+        self.p_list = []
+
         self.trolltechGreen = QtGui.QColor.fromCmykF(0.40, 0.0, 1.0, 0.0)
         self.trolltechPurple = QtGui.QColor.fromCmykF(0.39, 0.39, 0.0, 0.0)
 
@@ -220,22 +222,15 @@ class GLWidget(QtOpenGL.QGLWidget):
         genList = GL.glGenLists(1)
         GL.glNewList(genList, GL.GL_COMPILE)
 
-        s3 = np.sqrt(3)
-        self.sphere(0.5,0,0,0,QtGui.QColor.fromCmykF(1,1,0,.5))
-        self.sphere(0.5,1,0,0,QtGui.QColor.fromCmykF(1,1,0,.5))
-        self.sphere(0.5,.5,np.sqrt(3)/2,0,QtGui.QColor.fromCmykF(1,1,0,.5))
-        #self.sphere(0.5,.5,-np.sqrt(3)/2,0)
-        self.sphere(0.5,.5,1/(2*s3),np.sqrt(6)/3,QtGui.QColor.fromCmykF(.25,0,.75,.44))
-        self.sphere(0.5,.5,1/(2*s3),-np.sqrt(6)/3,QtGui.QColor.fromCmykF(.25,0,.75,.44))
-        #self.sphere(0.5,.5,.5,0)
+        
+        self.sphere(0.5,0,0,0,QtGui.QColor.fromHsvF(0,0,0,1))
+        for p in self.p_list:
+            self.sphere(0.5,p[0],p[1],p[2])
+        
         GL.glEndList()
 
         return genList
     def sphere(self,R,x1,y1,z1,scolor = None):
-        if scolor is None:
-            self.qglColor(QtGui.QColor.fromCmykF(0, 1.0, 1.0, 0.6))
-        else:
-            self.qglColor(scolor)
         panel_count = 50
         plane_count = 50
         def gen_x(lat,long):
@@ -247,7 +242,12 @@ class GLWidget(QtOpenGL.QGLWidget):
         for j in range(0,plane_count+1):
             GL.glBegin(GL.GL_QUAD_STRIP)
             for k in range(0,panel_count+1):
-                               
+                if scolor is None:
+                    self.qglColor(QtGui.QColor.fromHsvF((1.0*k)/(panel_count+1),1.0,(1.0*j)/(plane_count+1),.1))
+                else:
+                    self.qglColor(scolor)
+        
+                    
                 GL.glVertex3d(gen_x(j+1,k), gen_y(j+1,k),gen_z(j+1) )
                 GL.glVertex3d(gen_x(j,k), gen_y(j,k),gen_z(j) )
             GL.glEnd()    
