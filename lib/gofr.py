@@ -711,7 +711,7 @@ def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
     
     q_vec = 2*np.pi *np.linspace(.2,5 ,500)
 
-    S = compute_sofq(gofr,rho*.25,q_vec)
+    S = compute_sofq(gofr,rho,q_vec)
 
     if fig_sofq is None:
         if length is None:
@@ -780,13 +780,14 @@ def compute_sofq(gofr,rho,q_vec):
 
     r = gofr.x
     h = gofr.y-1
-
+    dr = np.diff(r)
+    dr = np.append(dr,np.mean(dr))
     # kludge to fix issue with doubled particles
     #h[0:5] = 0
 
 
     
-    S = [ 1 + (rho / q) * np.sum(r * np.sin(q*r) * h) for q in q_vec]
+    S = [ 1 + (rho / q) * np.sum(r * np.sin(q*r) * h *dr) for q in q_vec]
 
     return S
     
