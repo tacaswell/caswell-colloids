@@ -75,7 +75,9 @@ class Window(QtGui.QWidget):
 
         return slider
 
-
+    def update_p_list(self,p_lst):
+        self.glWidget.p_list = p_lst
+        self.glWidget.object = self.glWidget.makeObject()
 class GLWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None):
         QtOpenGL.QGLWidget.__init__(self, parent)
@@ -183,12 +185,13 @@ class GLWidget(QtOpenGL.QGLWidget):
         
         GL.glClear(GL.GL_COLOR_BUFFER_BIT | GL.GL_DEPTH_BUFFER_BIT)
         GL.glLoadIdentity()
-             
-        GL.glTranslated(0,0,-1)
+        
+        GL.glTranslated(-self.xpos, -self.ypos, -self.zpos)
         GL.glRotated(self.xRot / 16.0, 1.0, 0.0, 0.0)
         GL.glRotated(self.yRot / 16.0, 0.0, 1.0, 0.0)
         GL.glRotated(self.zRot / 16.0, 0.0, 0.0, 1.0)
-        GL.glTranslated(-self.xpos, -self.ypos, -self.zpos)
+        
+        
         GL.glCallList(self.object)
         
         
@@ -202,7 +205,7 @@ class GLWidget(QtOpenGL.QGLWidget):
         GL.glOrtho(-v_range,v_range,-v_range,v_range, 0, 150.0)
         GL.glMatrixMode(GL.GL_MODELVIEW)
         
-    def mousePressEvent(self, event):
+    def mousePremcssEvent(self, event):
         self.lastPos = QtCore.QPoint(event.pos())
 
     def mouseMoveEvent(self, event):
@@ -239,43 +242,22 @@ class GLWidget(QtOpenGL.QGLWidget):
             return R * np.sin(2*np.pi/panel_count * long) * np.sin(np.pi/plane_count * lat)+y1
         def gen_z(lat):
             return R * np.cos(np.pi/plane_count * lat)+z1
-        for j in range(0,plane_count+1):
+        for j in range(0,panel_count+1):
             GL.glBegin(GL.GL_QUAD_STRIP)
-            for k in range(0,panel_count+1):
+            for k in range(0,plane_count+1):
                 if scolor is None:
                     self.qglColor(QtGui.QColor.fromHsvF((1.0*k)/(panel_count+1),1.0,(1.0*j)/(plane_count+1),.1))
                 else:
                     self.qglColor(scolor)
         
-                    
+                
                 GL.glVertex3d(gen_x(j+1,k), gen_y(j+1,k),gen_z(j+1) )
-                GL.glVertex3d(gen_x(j,k), gen_y(j,k),gen_z(j) )
+                GL.glVertex3d(gen_x(j,k), gen_y(j,k),gen_z(j) )    
             GL.glEnd()    
                 
                 
                 
                 
-    def quad(self, x1, y1, x2, y2, x3, y3, x4, y4):
-        self.qglColor(self.trolltechGreen)
-
-        GL.glVertex3d(x1, y1, -0.05)
-        GL.glVertex3d(x2, y2, -0.05)
-        GL.glVertex3d(x3, y3, -0.05)
-        GL.glVertex3d(x4, y4, -0.05)
-
-        GL.glVertex3d(x4*0.8, y4*0.8, +0.05)
-        GL.glVertex3d(x3*0.8, y3*0.8, +0.05)
-        GL.glVertex3d(x2*0.8, y2*0.8, +0.05)
-        GL.glVertex3d(x1*0.8, y1*0.8, +0.05)
-
-    def extrude(self, x1, y1, x2, y2):
-        self.qglColor(self.trolltechGreen.darker(250 + int(100 * x1)))
-
-        GL.glVertex3d(x1*0.8, y1*0.8, +0.05)
-        GL.glVertex3d(x2*0.8, y2*0.8, +0.05)
-        GL.glVertex3d(x2, y2, -0.05)
-        GL.glVertex3d(x1, y1, -0.05)
-
     def normalizeAngle(self, angle):
         while angle < 0:
             angle += 360 * 16
