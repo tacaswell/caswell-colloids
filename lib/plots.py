@@ -147,4 +147,6 @@ def save_figure(fname,fig):
     spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
     if not  os.path.isdir(spath):
         os.makedirs(spath,0755)
+    if os.path.isfile(spath+fname+'.png'):
+        raise Exception("file name exists: " + spath + fname)
     fig.savefig(spath + fname)
