@@ -28,6 +28,7 @@ import scipy.odr as sodr
 import bisect
 import itertools
 import matplotlib.pyplot as plts
+import matplotlib.cm as cm
 import fitting
 import general as gen
 import matplotlib
@@ -210,9 +211,14 @@ def get_gofr2D_rho(comp_num,conn):
 
     return cord_pairs(bins,gofr),rho
 
-def get_gofr_tmp(fname,comp_num):
+def get_gofr_tmp(fname,comp_num,conn):
     F = h5py.File(fname,'r')
-    t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
+    if 'temperature' in  F["gofr_%(#)07d"%{"#":comp_num}].attrs:
+        t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
+    else:
+        (t,) = conn.execute("select temp from dsets " +
+                            "where key in (select dset_key from comps where comp_key = ? )",
+                            (comp_num,)).fetchone()
     F.close()
     return t
 
@@ -238,11 +244,11 @@ def make_2d_gofr_plot(comp_key,conn,fname = None):
 
 
     # make plot
-    istatus = plt.isinteractive();
-    if istatus:plt.ioff()
+    istatus = plts.isinteractive();
+    if istatus:plts.ioff()
     
     dset_names = ['bin_count', 'bin_edges']
-    fig = plt.figure()
+    fig = plts.figure()
     
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
@@ -272,10 +278,10 @@ def make_2d_gofr_plot(comp_key,conn,fname = None):
      
         
     if istatus:
-        plt.ion()
-        plt.show()
+        plts.ion()
+        plts.show()
     else:
-        plt.close(fig)
+        plts.close(fig)
 
 
 def plot_with_fitting(g_key,conn):
@@ -290,7 +296,7 @@ def plot_with_fitting(g_key,conn):
 
     
     
-    temps = get_gofr_tmp(res[1],res[0]) 
+    temps = get_gofr_tmp(res[1],res[0],conn) 
     print temps
 
     g = get_gofr2D(res[0],conn) 
@@ -324,7 +330,7 @@ def tmp_series_gn2D(comp_list,conn):
 
     res.sort(key=lambda x:x[1])
     
-    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     print temps
 
     gofrs = [get_gofr2D(r[0],conn) for r in res]
@@ -407,7 +413,7 @@ def tmp_series_fit_plots(comp_list,conn):
 
     res.sort(key=lambda x:x[1])
     
-    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     print temps
 
     gofrs = [get_gofr2D(r[0],conn) for r in res]
@@ -462,14 +468,14 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
 
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
-    istatus = plt.isinteractive();
+    istatus = plts.isinteractive();
     print istatus
-    if istatus:plt.ioff()
+    if istatus:plts.ioff()
 
     leg_hands = []
     leg_strs = []
 
-    fig = plt.figure()
+    fig = plts.figure()
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     ax.grid(True)
@@ -479,10 +485,10 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     gn_p = []
 
     
-    gn_fig = plt.figure()
+    gn_fig = plts.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
     
-    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     tmax = max(temps)
     tmin = min(temps)
     ax.set_color_cycle([cm.jet((t-tmin)/(tmax-tmin)) for t in temps])
@@ -491,6 +497,9 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
 
         
         F = h5py.File(r[1],'r')
+        print gtype + "_%(#)07d"%{"#":r[0]}
+        print gtype + "_%(#)07d"%{"#":r[0]} in F
+        
         g = F[gtype + "_%(#)07d"%{"#":r[0]}]
         
         
@@ -508,7 +517,10 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
                 # gn_t.append(25)
                 # gn_g.append(np.max(g[dset_names[0]]))
                 pass
+            
+        del g
         F.close()
+        del F
     gn_p.sort(lambda x,y: int(np.sign(x[0]-y[0])))
     for p in gn_p:
         gn_t.append(p[0])
@@ -536,12 +548,12 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
         
     if istatus:
         print "displaying figure"
-        plt.ion()
-        plt.show()
+        plts.ion()
+        plts.show()
     else:
         print "closing figure"
-        plt.close(fig)
-        plt.close(gn_fig)
+        plts.close(fig)
+        plts.close(gn_fig)
 
     return zip(gn_t,gn_g)
 
@@ -650,11 +662,11 @@ def make_2dv3d_plot(key,conn,fname = None):
 
 
     # make plot
-    istatus = plt.isinteractive();
-    if istatus:plt.ioff()
+    istatus = plts.isinteractive();
+    if istatus:plts.ioff()
     
     dset_names = ['bin_count', 'bin_edges']
-    fig = plt.figure()
+    fig = plts.figure()
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     ax.plot(group[dset_names[1]][:]*6.45/60,group[dset_names[0]])
@@ -676,10 +688,10 @@ def make_2dv3d_plot(key,conn,fname = None):
      
         
     if istatus:
-        plt.ion()
-        plt.show()
+        plts.ion()
+        plts.show()
     else:
-        plt.close(fig)
+        plts.close(fig)
         
         
 
@@ -698,7 +710,7 @@ def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
     
     
     
-    temp = get_gofr_tmp(r[1],r[0])
+    temp = get_gofr_tmp(r[1],r[0],conn)
     
 
     (gofr,rho) = get_gofr2D_rho(r[0],conn)
@@ -747,7 +759,7 @@ def get_max_sofq_loc(comp_list,conn):
     
     
     
-    temps = [get_gofr_tmp(r[1],r[0]) for r in res]
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     
 
     g_r = [get_gofr2D_rho(r[0],conn) for r in res]
@@ -797,7 +809,7 @@ def make_sofq_3D_plot(key,conn,Q):
     if not len(res)==1:
         raise util.dbase_error("can't find 3D gofr")
 
-    plt.figure()
+    plts.figure()
     g = gen.get_gofr3D(res[0][0],conn)
 
     S = sofQ(g,Q)
@@ -810,14 +822,14 @@ def make_sofq_3D_plot(key,conn,Q):
     S2 = gen.sofQ(g2,Q)
 
 
-    istatus = plt.isinteractive();
-    if istatus:plt.ioff()
+    istatus = plts.isinteractive();
+    if istatus:plts.ioff()
 
     # plot s(q)
     leg_hands = []
     leg_strs = []
     
-    fig = plt.figure()
+    fig = plts.figure()
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.hold(True)
     leg_hands.append(ax.plot(Q,S))
@@ -832,13 +844,13 @@ def make_sofq_3D_plot(key,conn,Q):
     
     if istatus:
         print "displaying figure"
-        plt.show()
-        plt.ion()
+        plts.show()
+        plts.ion()
     
     else:
         print "closing figure"
-        plt.close(fig)
-        plt.close(gn_fig)
+        plts.close(fig)
+        plts.close(gn_fig)
 
 
 
@@ -926,3 +938,30 @@ def gn_type_plots(sname,conn):
 
     ax.legend(leg_hands,leg_strs)
     plots.add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
+
+
+###################
+#format correction#
+###################
+def remove_gofr_computation(comp_number,conn):
+    (f_gofr,) = conn.execute("select fout from comps where comp_key = ?"
+                                   ,comp_number).fetchone()
+
+    # the order is important to keep the foreign constraints happy
+    # kill gofr_prams entry
+    conn.execute("delete from gofr_prams where comp_key = ?",comp_number)
+    # kill comps entry
+    conn.execute("delete from comps where comp_key = ?",comp_number)
+    # commit to db, commit before deleting the data as unmarked data is less irritating
+    # than non-existing data
+    conn.commit()
+    
+
+    
+    # remove group from hdf file
+    F = h5py.File(f_gofr,'r+')
+    del F["gofr_%(#)07d"%{"#":comp_number[0]}]
+    F.close()
+    del F
+    
+    pass
