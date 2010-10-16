@@ -239,3 +239,38 @@ def extract_spatial_calibration(group):
     
 
     return group.attrs['spatial-calibration-x']
+
+def get_z_pos(comp_num,conn):
+    """
+    given an iden like computation number returns the (z,y,x) cords of the first frame
+    """
+    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
+                                " function like 'Iden%'",(comp_num,)).fetchone()
+
+    pos = None
+    F = h5py.File(fname,'r')
+    if 'z-position' in  F['/frame000000'].attrs.keys():
+        pos = (F['/frame000000'].attrs['z-position'],
+               F['/frame000000'].attrs['stage-position-y'],
+               F['/frame000000'].attrs['stage-position-x'])
+
+    F.close()
+    
+    return pos
+
+
+def get_iden_attrs(comp_num,conn,attr_lst):
+    """
+    given an iden like computation number returns the (z,y,x) cords of the first frame
+    """
+    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
+                                " function like 'Iden%'",(comp_num,)).fetchone()
+
+    out = None
+    F = h5py.File(fname,'r')
+    if all([at in F['/frame000000'].attrs for at in attr_lst]):
+        out = [ F['/frame000000'].attrs[at] for at in attr_lst]
+
+    F.close()
+    
+    return pos
