@@ -107,20 +107,21 @@ def lj_generator(ep,rmin,r_max):
 def gen_step(pos):
     '''Generates the next step '''
 
-    return pos + nr.normal(0,.05,np.shape(pos))
+    return pos + nr.normal(0,.075,np.shape(pos))
 
 
-def list_loop(p_list,n,lj):
+def list_loop(p_list,n,lj,T):
     chain_stack = []
     for j in range(0,n):
         #lpf = p_fun_generator(p_list,.1,lj,1);
         lpf = p_fun_hash(p_list,2.5,lj)
         prop_point = nr.uniform(-1,1,3)
         prop_point = prop_point/np.sqrt(np.sum(prop_point**2))*(np.power(len(p_list)/(4*.74),1.0/3))
-        chain_stack.append(run_steps(prop_point,5000,500000,gen_step,lpf,.1))
-        p_list.append(np.array([np.mean([c[0][0] for c in chain_stack[-1][1000:]]),
-                                np.mean([c[0][1] for c in chain_stack[-1][1000:]]),
-                                np.mean([c[0][2] for c in chain_stack[-1][1000:]])]))
+        print prop_point
+        chain_stack.append(run_steps(prop_point,10000,500000,gen_step,lpf,T))
+        p_list.append(np.array([np.mean([c[0][0] for c in chain_stack[-1][5000:]]),
+                                np.mean([c[0][1] for c in chain_stack[-1][5000:]]),
+                                np.mean([c[0][2] for c in chain_stack[-1][5000:]])]))
                                                                         
     return p_list,chain_stack
                                                                         
@@ -142,9 +143,9 @@ class p_fun_hash:
         # if not the same as the current hash value, reload
         if self.cur_center_hash is None or len(self.hash_list) == 0 or (
             (tmp_hash != self.cur_center_hash).any() and np.sum((self.cur_center - pos)**2)>.25 ):
-            print self.cur_center_hash
-            print tmp_hash
-            print pos
+            ## print self.cur_center_hash
+            ## print tmp_hash
+            ## print pos
             print np.sqrt(np.sum(pos**2))
             self.cur_center_hash  = tmp_hash
             self.cur_center = pos
@@ -153,7 +154,7 @@ class p_fun_hash:
         # if there are no particles near by, force to center aggressively
         if len(self.hash_list) ==0:
             print 'not in contact with anything'
-            return -np.sum(pos**2)*1500/T
+            return -np.sum(pos**12)*1500/T
 
         # compute the distances needed
         r_s = [np.sum((p-pos)**2) for p in self.hash_list]
