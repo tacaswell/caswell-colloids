@@ -32,7 +32,18 @@ def run_steps(start,max_accepted_steps,max_steps,generate_step,log_p_fun,T):
     accpted_steps = 0
     steps = 0
     cur_pos = start
-    cur_log_p = log_p_fun(start,T)
+    flg = True
+    cur_log_p = 0
+    while flg:
+        print start
+        flg = False
+        try:
+            cur_log_p = log_p_fun(start,T)
+        except no_contact_expt:
+            flg = True
+            start = start*.9
+            
+        
     step_chain = [(cur_pos,cur_log_p)]
     
     # main loop
@@ -40,9 +51,14 @@ def run_steps(start,max_accepted_steps,max_steps,generate_step,log_p_fun,T):
         # proposed step
         prop_pos = generate_step(cur_pos)
 
-        # get the ratio of probability for the two positions 
-        prop_log_p = log_p_fun(prop_pos,T)
-        
+        # get log probability of the proposed position
+        try:
+            prop_log_p = log_p_fun(prop_pos,T)
+        except no_contact_expt:
+            print 'stepped out of range'
+            steps +=1
+            continue
+            
         ## if accpted_steps > max_accepted_steps/2:
         ##     T = T*.5
         ##     print accpted_steps,steps
@@ -154,7 +170,7 @@ class p_fun_hash:
         # if there are no particles near by, force to center aggressively
         if len(self.hash_list) ==0:
             print 'not in contact with anything'
-            return -np.sum(pos**12)*1500/T
+            raise no_contact_expt()
 
         # compute the distances needed
         r_s = [np.sum((p-pos)**2) for p in self.hash_list]
@@ -163,7 +179,10 @@ class p_fun_hash:
 
 
     def fill_hash(self):
-        
+        ## print len(self.p_list)
+        ## print self.p_list
+        ## print self.cur_center_hash
+        ## print [self.compute_hash(p) for p in self.p_list]
         self.hash_list = [p for p in self.p_list
                           if ((self.compute_hash(p)>= (self.cur_center_hash-np.ones(self.cur_center_hash.shape)))*
                               (self.compute_hash(p)<= (self.cur_center_hash+np.ones(self.cur_center_hash.shape))))
@@ -174,3 +193,7 @@ class p_fun_hash:
     def compute_hash(self,pos):
         return np.floor(pos/self.ip_range)
 
+class no_contact_expt(Exception):
+    def __init__(self):
+        pass
+    

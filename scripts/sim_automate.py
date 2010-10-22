@@ -20,8 +20,8 @@ def save_to_hdf(fname,p,chains,run,count):
 
     grp.create_dataset(plist_name,data=p)
 
-    logs = [c[0] for c in chains]
-    pos = [c[1] for c in chains]
+    logs = [c[1] for c in chains]
+    pos = [c[0] for c in chains]
     pos = np.vstack(pos)
     
     grp.create_dataset(pos_name,data=pos)
@@ -54,22 +54,23 @@ def main(fname,rmin,r_max,ij_e,T,part_to_add):
         #save_to_hdf(fname,p_list,[],run,count)
 
         for j in range(0,part_to_add):
+            print len(p_list)
             count += 1
             lpf = sm.p_fun_hash(p_list,r_max,lj)
             prop_point = nr.uniform(-1,1,3)
             prop_point = prop_point/np.sqrt(np.sum(prop_point**2))*(np.power(len(p_list)/(4*.74),1.0/3))
 
-            chain = sm.run_steps(prop_point,10000,500000,sm.gen_step,lpf,T)
+            chain = sm.run_steps(prop_point,5000,1000000,sm.gen_step,lpf,T)
 
             save_to_hdf(fname,p_list,chain,run,count)
-
-            p_list.append(np.array([np.mean([c[0][0] for c in chain[-1][5000:]]),
-                                np.mean([c[0][1] for c in chain[-1][5000:]]),
-                                np.mean([c[0][2] for c in chain[-1][5000:]])]))
+            
+            p_list.append(np.array([np.mean([c[0][0] for c in chain[1000:]]),
+                                np.mean([c[0][1] for c in chain[1000:]]),
+                                np.mean([c[0][2] for c in chain[1000:]])]))
 
         print 'finished run'
 
 if __name__ == '__main__':
     fname = sys.argv[1]
     T = float(sys.argv[2])
-    main(fname,1,2.5,15,T,100)
+    main(fname,1,2.5,10,T,150)
