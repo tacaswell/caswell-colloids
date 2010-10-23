@@ -23,6 +23,7 @@ import pdb
 import matplotlib
 import matplotlib.pyplot as mplt
 from general import fd
+import general as gen
 import fitting
 def read_vanHove(comp_key,conn):
     '''Takes in a comp_key to a van Hove computation and returns a
@@ -82,17 +83,18 @@ def plot_vanHove_pn(comp_lst,time_step,conn):
         
         temp = g.attrs['temperature']
         dtime = g.attrs['dtime']
-        j = int(time_step/dtime)
+        if dtime != 0:
+            j = int(time_step/dtime)
 
-        count = g[fd('step',j)]['x']['disp_count'][:]
-        edges = g[fd('step',j)]['x']['disp_edges'][:]
-        fig.plot(edges,count/numpy.sum(count),label='%.2f'%temp,color=cm.get_color(temp))
+            count = g[fd('step',j)]['x']['disp_count'][:]
+            edges = g[fd('step',j)]['x']['disp_edges'][:]
+            fig.plot(edges,count/np.sum(count),label='%.2f'%temp,color=cm.get_color(temp))
         
         del g
         Fin.close()
         del Fin
 
-def extract_vanHove(c,conn,time_step,count_cut,wind=1):
+def extract_vanHove(c,conn,time_step,count_cut,wind=1,norm=False):
     """
     Function to encapsulate extracting a vanHove at a given time step.
     The actual time difference will always be less than requested due
@@ -116,7 +118,8 @@ def extract_vanHove(c,conn,time_step,count_cut,wind=1):
     Fin.close()
     del Fin
         
-    
+    if norm:
+        count = count/np.sum(count)
 
     return edges,count,temp,dtime,x_lim
 
@@ -293,7 +296,7 @@ def plot_vanHove_dt(comp,conn,start,step_size,steps):
     Fin.close()
     del Fin
 
-def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gauss):
+def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gauss,norm=False):
     '''Plots a grid array of the Von Hove functions at the time step
     given for all of the comps in the comp_lst'''
 
@@ -306,8 +309,15 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     plt_count = 1
     outs = []
     tmps = []
-    for c in comp_lst:
-        (edges,count,temp,dtime,x_lim) = extract_vanHove(c,conn,time_step,50,wind)
+    data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
+    data.sort(key=lambda x: x[2])
+    extream = [(np.min(d[1]), np.max(d[1])) for d in data]
+    print extream
+    y_lim = [np.min([d[0] for d in extream]), np.max([d[1] for d in extream])]
+    print y_lim
+    y_lim = [np.log(y_lim[0]*.9), np.log(y_lim[1]*1.1)]
+    print y_lim
+    for (edges,count,temp,dtime,x_lim) in data:
         if len(count) < 50:
             break
         #count = count/np.sum(count)
@@ -328,10 +338,14 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
         outs.append(out)
         tmps.append(temp)
         ax.plot(edges,np.log(func(out.beta,edges)),'--k')
-        ax.set_ylabel(r'$\log{N}$')
+        if norm:
+            ax.set_ylabel(r'$\ln{P(\Delta)}$')
+        else:
+            ax.set_ylabel(r'$\ln{N}$')
         ax.step(edges,np.log((count)),color=cm.get_color(temp))
         ax.set_title('%.2f'%temp + ' dtime:%d ms'%dtime)
         ax.set_xlim(x_lim)
+        ax.set_ylim(y_lim)
         plt_count += 1
 
     mplt.draw()
@@ -403,3 +417,22 @@ def find_knee(x,y):
     # find intercept
     knee_r = (f_top.beta[1] - f_bottom.beta[1])/(-f_top.beta[0] + f_bottom.beta[0])
     
+
+def fix_vanHove_dtime(vh_key,conn):
+    """Fixes vanHove data sets that have the dtime messed up"""
+
+    # look up trk_key
+    (trk_key,) = conn.execute("select track_key from vanHove_prams where comp_key = ?"
+                              ,(vh_key,)).fetchone()
+    # get avgerage dtime
+    dtime = gen.avg_dtime(trk_key,conn)
+    # set dtime attribute
+    (fname,) = conn.execute("select fout from comps where comp_key = ? and function = 'vanHove'"
+                              ,(vh_key,)).fetchone()
+    Fin = h5py.File(fname,'r+')
+    g = Fin[fd('vanHove',vh_key)]
+    
+    g.attrs['dtime'] = dtime
+
+    Fin.close()
+    del Fin
