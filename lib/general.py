@@ -28,7 +28,7 @@ import bisect
 import itertools
 import matplotlib.pyplot as plts
 import fitting
-
+import datetime
 def open_conn():
     '''Opens the data base at the standard location and returns the connection'''
     conn =sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
@@ -255,11 +255,11 @@ def get_z_pos(comp_num,conn):
                F['/frame000000'].attrs['stage-position-x'])
 
     F.close()
-    
+    del F
     return pos
 
 
-def get_iden_attrs(comp_num,conn,attr_lst):
+def get_iden_attrs_fr(comp_num,conn,attr_lst):
     """
     given an iden like computation number returns the (z,y,x) cords of the first frame
     """
@@ -272,5 +272,148 @@ def get_iden_attrs(comp_num,conn,attr_lst):
         out = [ F['/frame000000'].attrs[at] for at in attr_lst]
 
     F.close()
+    del F
+    return out
+
+def get_iden_attrs_tl(comp_num,conn,attr_lst):
+    """
+    given an iden like computation number returns the (z,y,x) cords of the first frame
+    """
+    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
+                                " function like 'Iden%'",(comp_num,)).fetchone()
+
+    out = None
+    F = h5py.File(fname,'r')
+    if all([at in F.attrs for at in attr_lst]):
+        out = [ F.attrs[at] for at in attr_lst]
+
+    F.close()
     
-    return pos
+    return out
+
+def set_plane_temp_constant(iden_key,conn,temp):
+    """Takes an Iden_key, a database connection and a temperature and
+    sets the value of temperature for all of the planes in the iden
+    object to temp.  This is for making older iden files work with
+    code that expects the temperature to be in the meta-data"""
+
+    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
+    F = h5py.File(fname,'r+')
+    
+    for g in F:
+        if g == 'parameters':
+            break
+        grp = F[g]
+        if 'temperature' in grp.attrs.keys():
+            raise Exception("This file already has temperatures for the planes")
+        grp.attrs['temperature'] = temp
+    F.close()
+
+def list_iden_attrs(comp_num,conn):
+    """Returns the list of top level attributes and a list of the per from attributes"""
+    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
+                                " function like 'Iden%'",(comp_num,)).fetchone()
+
+    out = None
+    F = h5py.File(fname,'r')
+    out = [F.attrs.keys(), F['/frame000000'].attrs.keys()]
+           
+    F.close()
+    del F
+    return out
+
+
+
+def set_plane_exposure(iden_key,conn):
+    """Takes an Iden_key, a database connection.  This takes the
+    Exposure in the top level data, parses it an puts it in the frame
+    level meta-data where the file spec says it should be.  This is
+    for making older iden files work with code that expects the
+    temperature to be in the meta-data"""
+
+    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
+    F = h5py.File(fname,'r+')
+    exp = F.attrs['Exposure']
+    (exp_time,exp_units) = exp.strip().split(' ')
+    exp_time = int(exp_time)
+    for g in F:
+        if g == 'parameters':
+            break
+        grp = F[g]
+        if 'Exposure' in grp.attrs.keys():
+            raise Exception("This file already has temperatures for the planes")
+        grp.attrs['Exposure'] = exp_time
+        grp.attrs['Exposure units'] = exp_units
+    F.close()
+    del F
+
+def fix_attr_dt_f2i(iden_key,conn,atr):
+    """Takes an Iden_key, a database connection.  This takes the
+    Exposure in the top level data, parses it an puts it in the frame
+    level meta-data where the file spec says it should be.  This is
+    for making older iden files work with code that expects the
+    temperature to be in the meta-data"""
+
+    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
+    F = h5py.File(fname,'r+')
+    for g in F:
+        if g == 'parameters':
+            break
+        grp = F[g]
+        if atr in grp.attrs.keys():
+            val = grp.attrs[atr]
+            del grp.attrs[atr]
+            grp.attrs.create(atr,int(val),None,'int32')
+            
+    F.close()
+    del F
+
+
+
+def fix_dtime(iden_key,conn):
+    """This fixes the dtime values which are apparently screwed up in
+    old Iden files"""
+    atr = 'dtime'
+    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
+    F = h5py.File(fname,'r+')
+    grp = F[ff(0)]
+    del grp.attrs[atr]
+    grp.attrs.create(atr,0,None,'int32')
+    tmp = grp.attrs["acquisition-time-local"]
+    init_t = datetime.datetime.strptime(tmp[:17],"%Y%m%d %H:%M:%S")
+    init_t.replace(microsecond=int(tmp[18:])*1000)
+    del grp
+    for j in range(1,F.attrs['number-of-planes']):
+        
+        grp = F[ff(j)]
+        del grp.attrs[atr]
+        tmp = grp.attrs["acquisition-time-local"]
+        cur_t = datetime.datetime.strptime(tmp[:17],"%Y%m%d %H:%M:%S")
+        cur_t.replace(microsecond=int(tmp[18:])*1000)
+        dt = cur_t - init_t
+        dtime = dt.seconds*(10**3) + dt.microseconds/(10**3)
+        grp.attrs.create(atr,dtime,None,'int32')
+        del grp
+        init_t = cur_t
+    F.close()
+    del F
+
+def avg_dtime(iden_key,conn):
+    '''Returns the average dtime of an iden set '''
+    atr = 'dtime'
+    (fname,) = conn.execute("select fout from comps where comp_key =?",(iden_key,)).fetchone()
+    F = h5py.File(fname,'r')
+    dtime_sum = 0
+    frame_count = F.attrs['number-of-planes']
+    for j in range(1,frame_count):
+        grp = F[ff(j)]
+        dtime_sum += grp.attrs[atr]
+        del grp
+        
+    F.close()
+    del F
+
+    return dtime_sum/frame_count
+
+
+    
