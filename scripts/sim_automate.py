@@ -6,50 +6,60 @@ import numpy as np
 import numpy.random as nr
 import sys
 
-def save_to_hdf(fname,p,chains,run,count):
-    Fout = h5py.File(fname,'r+')
-    run_name = "run_%(#)04d"%{"#":run}
-    if run_name not in Fout.keys():
-        raise Exception("file not inited properly")
-
-    grp = Fout[run_name]
+def save_to_hdf(grp,p,chains,run,count):
+    
+    
 
     plist_name = "plist_%(#)04d"%{"#":count}
     pos_name = "pos_%(#)04d"%{"#":count}
     log_name = "log_p_%(#)04d"%{"#":count}
 
-    grp.create_dataset(plist_name,data=p)
-
-    logs = [c[1] for c in chains]
-    pos = [c[0] for c in chains]
-    pos = np.vstack(pos)
     
-    grp.create_dataset(pos_name,data=pos)
-    grp.create_dataset(log_name,data=logs)
+    p = np.vstack(p)
+    logs = np.array([c[1] for c in chains])
+    pos = np.vstack([c[0] for c in chains])
+    
+    
+    ## print pos.shape
+    ## print p.shape
+    ## print logs.shape
+    p_dset = grp.create_dataset(plist_name,p.shape)
+    pos_dset = grp.create_dataset(pos_name,pos.shape)
+    log_dset = grp.create_dataset(log_name,logs.shape)
 
-    Fout.close()
-    del Fout
+
+    p_dset[:] = p
+    pos_dset[:] = pos
+    log_dset[:] = logs
+    ## Fout.close()
+    ## del Fout
 
 
-def create_hdf(fname,run,T,ij_e,rmin,r_max):
-    Fout = h5py.File(fname,'a')
-    run_name = "run_%(#)04d"%{"#":run}
+def create_hdf(fname):
+    return h5py.File(fname,'w')
+
+def create_grp(Fout,run_num,T,ij_e,rmin,r_max):
+    run_name = "run_%(#)04d"%{"#":run_num}
     grp = Fout.create_group(run_name)
     grp.attrs['T'] = T
     grp.attrs['rmin'] = rmin
     grp.attrs['r_max'] = r_max
     grp.attrs['ij_e'] = ij_e
-    Fout.close()
-    del Fout
+    return grp
+
+
+    
 
 def main(fname,rmin,r_max,ij_e,T,part_to_add):
     lj = sm.lj_generator(ij_e,rmin,r_max)
     
-    
+    Fout = create_hdf(fname)
     for run in range(0,50):
-        create_hdf(fname, run,T,ij_e,rmin,r_max)
+        
+        
+        grp = create_grp(Fout,run,T,ij_e,rmin,r_max)
         p_list = [np.array([0,0,0]),np.array([0,1,0]),np.array([np.sqrt(3)/2,.5,0])]
-
+        
         count = 0
         #save_to_hdf(fname,p_list,[],run,count)
 
@@ -62,7 +72,7 @@ def main(fname,rmin,r_max,ij_e,T,part_to_add):
 
             chain = sm.run_steps(prop_point,5000,1000000,sm.gen_step,lpf,T)
 
-            save_to_hdf(fname,p_list,chain,run,count)
+            save_to_hdf(grp,p_list,chain,run,count)
             
             p_list.append(np.array([np.mean([c[0][0] for c in chain[1000:]]),
                                 np.mean([c[0][1] for c in chain[1000:]]),
@@ -70,6 +80,8 @@ def main(fname,rmin,r_max,ij_e,T,part_to_add):
 
         print 'finished run'
 
+    Fout.close()
+    del Fout
 if __name__ == '__main__':
     fname = sys.argv[1]
     T = float(sys.argv[2])
