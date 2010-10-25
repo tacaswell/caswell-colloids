@@ -162,7 +162,7 @@ class p_fun_hash:
             ## print self.cur_center_hash
             ## print tmp_hash
             ## print pos
-            print np.sqrt(np.sum(pos**2))
+            #print np.sqrt(np.sum(pos**2))
             self.cur_center_hash  = tmp_hash
             self.cur_center = pos
             self.fill_hash()
@@ -187,7 +187,7 @@ class p_fun_hash:
                           if ((self.compute_hash(p)>= (self.cur_center_hash-np.ones(self.cur_center_hash.shape)))*
                               (self.compute_hash(p)<= (self.cur_center_hash+np.ones(self.cur_center_hash.shape))))
                           .all()]
-        print 'refilled hash_list',len(self.hash_list)
+        ## print 'refilled hash_list',len(self.hash_list)
         
         
     def compute_hash(self,pos):
