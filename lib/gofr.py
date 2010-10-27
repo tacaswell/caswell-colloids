@@ -215,10 +215,12 @@ def get_gofr_tmp(fname,comp_num,conn):
     F = h5py.File(fname,'r')
     if 'temperature' in  F["gofr_%(#)07d"%{"#":comp_num}].attrs:
         t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
+        print 't from file',t
     else:
         (t,) = conn.execute("select temp from dsets " +
                             "where key in (select dset_key from comps where comp_key = ? )",
                             (comp_num,)).fetchone()
+        print ' t from db',t
     F.close()
     return t
 
@@ -450,7 +452,7 @@ def tmp_series_fit_plots(comp_list,conn):
 
     print [(np.pi*2)/p.beta[1] for p in fits ]
 
-def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None):
+def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',date = None,g1_fig = None,T_correction = 0):
     '''Takes in a sample name and plots all of the g(r) for it '''
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
@@ -484,11 +486,14 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     gn_t = []
     gn_p = []
 
+    if g1_fig is None:
+        gn_fig = plts.figure()
+        gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
+    else:
+        gn_fig = g1_fig
+        gn_ax = g1_fig.gca()
     
-    gn_fig = plts.figure()
-    gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
-    
-    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+    temps = [get_gofr_tmp(r[1],r[0],conn)+T_correction for r in res]
     tmax = max(temps)
     tmin = min(temps)
     ax.set_color_cycle([cm.jet((t-tmin)/(tmax-tmin)) for t in temps])
@@ -537,12 +542,13 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     gn_ax.set_title(sname + r' $g_1(T)$')
     gn_ax.set_xlabel('T')
     gn_ax.set_ylabel('$g_1$')
+    if g1_fig is not None:
+        plts.draw()
 
-
-    if not fnameg == None:
+    if fnameg is not None:
         fig.savefig(fnameg)
 
-    if not fnamegn == None:
+    if  fnamegn is not None:
         gn_fig.savefig(fnamegn)
 
         
@@ -965,3 +971,23 @@ def remove_gofr_computation(comp_number,conn):
     del F
     
     pass
+
+def fix_temperature(comp_key,conn):
+    '''Fixes the temperature meta data (for exmaple, if you forget to
+    set it in the Iden* files)'''
+
+    (t,) = conn.execute("select temp from dsets " +
+                            "where key in (select dset_key from comps where comp_key = ? )",
+                            (comp_key,)).fetchone()
+    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_key,)).fetchone()
+    F = h5py.File(fname,'r+')
+    grp = F["gofr_%(#)07d"%{"#":comp_key}]
+    if 'temperature' in  grp.attrs:
+        del grp.attrs['temperature']
+    
+    grp.attrs.create('temperature',t,None,'float32')
+    F.close()
+    return t
+
+
+    
