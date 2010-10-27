@@ -347,27 +347,6 @@ def set_plane_exposure(iden_key,conn):
     F.close()
     del F
 
-def fix_attr_dt_f2i(iden_key,conn,atr):
-    """Takes an Iden_key, a database connection.  This takes the
-    Exposure in the top level data, parses it an puts it in the frame
-    level meta-data where the file spec says it should be.  This is
-    for making older iden files work with code that expects the
-    temperature to be in the meta-data"""
-
-    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
-    F = h5py.File(fname,'r+')
-    for g in F:
-        if g == 'parameters':
-            break
-        grp = F[g]
-        if atr in grp.attrs.keys():
-            val = grp.attrs[atr]
-            del grp.attrs[atr]
-            grp.attrs.create(atr,int(val),None,'int32')
-            
-    F.close()
-    del F
-
 
 
 def fix_dtime(iden_key,conn):
