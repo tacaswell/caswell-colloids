@@ -300,7 +300,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     '''Plots a grid array of the Von Hove functions at the time step
     given for all of the comps in the comp_lst'''
 
-    cm = plt.color_mapper(27,33)
+    
     
     fig = mplt.figure()
     fig.suptitle(r'van Hove dist $\tau = %.2f \rm{s}$'% (time_step/1000))
@@ -308,8 +308,10 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     
     plt_count = 1
     outs = []
-    tmps = []
+    
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
+    tmps = [d[2] for d in data]
+    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     extream = [(np.min(d[1]), np.max(d[1])) for d in data]
     print extream
@@ -336,7 +338,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
         out = fitting.fit_curve(edges,count,p0,func)
         out = fitting.fit_curve(edges,count,out.beta,func)
         outs.append(out)
-        tmps.append(temp)
+        
         ax.plot(edges,np.log(func(out.beta,edges)),'--k')
         if norm:
             ax.set_ylabel(r'$\ln{P(\Delta)}$')
