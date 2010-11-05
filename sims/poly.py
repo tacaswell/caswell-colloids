@@ -39,7 +39,9 @@ def sim_4_pt(rads):
 def compute_dist_4(rads):
     '''Computes the actual distance '''
 
-    return compute_height([rads[0],rads[2],rads[3]]) + compute_height([rads[1],rads[2],rads[3]])
+    a = compute_height([rads[0],rads[2],rads[3]])
+    b = compute_height([rads[1],rads[2],rads[3]])
+    return np.sqrt((a[0] + b[0])**2 + (a[1] - b[1])**2)
 
 def compute_height(r):
     ''' computes the height of a triangle with the given sides '''
@@ -49,7 +51,7 @@ def compute_height(r):
 
     d = (b**2 + c**2 - a**2)/(2*c)
     
-    return np.sqrt(b**2 - d**2)
+    return (np.sqrt(b**2 - d**2),d)
 
 def sim_3_pt(rads):
     '''Takes in 3 radius, returns the all the permutations of the 3 arrangement'''
