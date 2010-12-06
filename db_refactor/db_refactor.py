@@ -17,6 +17,13 @@
 
 import sqlite3
 
+def fill_func_names(conn_old,conn_new):
+    # get all of the functions from the old data base
+
+    fnames = conn_old.execute("select distinct(function ) from comps ").fetchall()
+
+    for f in fnames:
+        conn_new.execute("insert into func_names (func_name) values (?) ",f)
 
 def fill_dsets(conn_old,conn_new):
     # get data from old database
@@ -30,10 +37,12 @@ def fill_dsets(conn_old,conn_new):
 
 def fill_comps(conn_old,conn_new):
     # get data from old database
-    comps_old = conn_old.execute("select comp_key,function,dset_key from comps")
+    comps_old = conn_old.execute("select comp_key,dset_key from comps")
+    f_old = conn_old.execute("select function from comps")
     # shove in to new
-    for c in comps_old:
-        conn_new.execute("insert into comps (comp_key,func_name,dset_key) values (?,?,?)",c)
+    for (c,f) in zip(comps_old,f_old):
+        f_key = conn_new.execute("select func_key from func_names where func_name = ?",f).fetchone()
+        conn_new.execute("insert into comps (comp_key,dset_key,func_key) values (?,?,?)",c+ f_key)
     # commit
     conn_new.commit()
     
@@ -193,13 +202,14 @@ def fill_vanHove(conn_old,conn_new):
                          ") values ("+ ','.join(['?']*len(vh_f)) + ")",vh)
         
 def main(conn,conn_new):
-    dr.fill_dsets(conn,conn_new)
-    dr.fill_comps(conn,conn_new)
-    dr.fill_iden(conn,conn_new)
-    dr.fill_gofr(conn,conn_new)
-    dr.fill_gofr_by_plane(conn,conn_new)
-    dr.fill_tracking(conn,conn_new)
-    dr.fill_msd(conn,conn_new)
-    dr.fill_vanHove(conn,conn_new)
-    dr.fill_trk_stat(conn,conn_new)
+    fill_func_names(conn,conn_new)
+    fill_dsets(conn,conn_new)
+    fill_comps(conn,conn_new)
+    fill_iden(conn,conn_new)
+    fill_gofr(conn,conn_new)
+    fill_gofr_by_plane(conn,conn_new)
+    fill_tracking(conn,conn_new)
+    fill_msd(conn,conn_new)
+    fill_vanHove(conn,conn_new)
+    fill_trk_stat(conn,conn_new)
     

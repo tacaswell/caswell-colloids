@@ -8,10 +8,17 @@ CREATE TABLE dsets (
 
 CREATE TABLE comps(
 	comp_key INTEGER PRIMARY KEY ASC AUTOINCREMENT,
-	func_name TEXT NOT NULL,
-	dset_key INTEGER,
-	FOREIGN KEY(dset_key) REFERENCES dsets(dset_key)
+	func_key INTEGER NOT NULL,
+	dset_key INTEGER NOT NULL,
+	FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
+	FOREIGN KEY(func_key) REFERENCES func_names(func_key)
 );
+
+CREATE TABLE func_names(
+       func_key INTEGER PRIMARY KEY,
+       func_name TEXT NOT NULL UNIQUE
+);
+
 
 CREATE TABLE iden(
 	comp_key INTEGER PRIMARY KEY,
@@ -136,5 +143,20 @@ CREATE TABLE vanHove (
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
+);
+
+CREATE TABLE msd_sweep (
+       comp_key     INTEGER  PRIMARY KEY ,
+       dset_key     INTEGER  NOT NULL	,
+       iden_key    INTEGER  NOT NULL    ,
+       track_key    INTEGER  NOT NULL    ,
+       trk_len_min  INTEGER  NOT NULL    ,
+       trk_len_step INTEGER  NOT NULL    ,
+       steps        INTEGER  NOT NULL    ,
+       FOREIGN KEY(comp_key)  REFERENCES comps(comp_key),		
+       FOREIGN KEY(dset_key)  REFERENCES dsets(dset_key),
+       FOREIGN KEY(track_key) REFERENCES tracking(comp_key),
+       FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
+
 );
 
