@@ -29,9 +29,11 @@ import itertools
 import matplotlib.pyplot as plts
 import fitting
 import datetime
-def open_conn():
+def open_conn(fname=None):
     '''Opens the data base at the standard location and returns the connection'''
-    conn =sqlite3.connect('/home/tcaswell/colloids/processed/processed_data.db')
+    if fname is None:
+        fname = '/home/tcaswell/colloids/processed/processed_data.db'
+    conn =sqlite3.connect(fname)
     conn.execute('PRAGMA foreign_keys = ON;')
     return conn
 
