@@ -20,7 +20,7 @@ import h5py
 import numpy
 import pdb
 import matplotlib
-
+_C_to_K = 273.15
 def _ff(n):
     """Formats frame names """
     return "frame%(#)06d"%{"#":n}
@@ -47,7 +47,7 @@ def write_delta_T(comp,conn):
     Fout.close()
     del Fout
     
-def plot_msd(comp_key,conn,fig=None):
+def plot_msd_old(comp_key,conn,fig=None):
     if fig is None:
         fig = plt.Figure('t[s]','msd','msd')
         pass
@@ -73,6 +73,36 @@ def plot_msd(comp_key,conn,fig=None):
     del Fin
     return fig
 
+
+def plot_msd(comp_key,conn,fig=None):
+    if fig is None:
+        fig = plt.Figure('t[s]','msd','msd')
+        pass
+    
+    (fin,) = conn.execute("select fout from msd where comp_key = ?",(comp_key,)).fetchone()
+
+    
+    
+    
+    Fin = h5py.File(fin,'r')
+    g_name = _fd('mean_squared_disp',comp_key)
+    
+    msd = Fin[g_name]['msd'][:]
+    dt = Fin[g_name].attrs['dtime']
+    temp = Fin[g_name].attrs['temperature']
+    mtl = Fin[g_name].attrs['min_track_length']
+    print 
+    print 'the delta is ',  dt, 'for comp ' ,comp_key
+    t = (numpy.arange(len(msd))+1)*dt
+
+    cm = plt.color_mapper(27,33)
+    
+    fig.plot(t,msd,label='%(#).2fC, %(!)d'%{"!":mtl,"#":temp},color=cm.get_color(temp))
+    Fin.close()
+    del Fin
+    return fig
+
+
 def plot_msd_series(comp_key_lst,conn,sname=None):
     """ Takes in a list of msd computations and makes a nice plot"""
 
@@ -81,16 +111,73 @@ def plot_msd_series(comp_key_lst,conn,sname=None):
         tltstr = tltstr + " " + sname
         
 
-
-    cmplst = [c + conn.execute("select temp from dsets where key in (select dset_key from msd_prams where comp_key = ?) ",c).fetchone() for c in comp_key_lst]
-
-    print cmplst
-    cmplst.sort(key=lambda x:x[1])
+        
     
-    fig = plt.Figure('t[s]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.loglog)
-    for c in cmplst:
+    fig = plt.Figure('t[ms]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.plot)
+    for c in comp_key_lst:
         plot_msd(c[0],conn,fig)
 
+def series_fit(comp_key_lst,conn):
+    """Takes a list of computation key  """
+
+    
+    
+    
+    
+    
+
+def fit_msd(comp_key,conn):
+    (fin,) = conn.execute("select fout from msd where comp_key = ?",(comp_key,)).fetchone()
+    Fin = h5py.File(fin,'r')
+    g_name = _fd('mean_squared_disp',comp_key)
+    
+    msd = Fin[g_name]['msd'][:]
+    dt = Fin[g_name].attrs['dtime']
+    temp = Fin[g_name].attrs['temperature']
+    Fin.close()
+    del Fin
+    
+    t = (numpy.arange(len(msd))+1)*dt
+
+    (x,r,rn,s) = numpy.linalg.lstsq(numpy.transpose(numpy.array([t,numpy.ones(len(msd))])),msd)
+
+    scale = 6.45/60                     # u[m]/[pix]
+    return (x[0],temp,_dilute_D_to_rad((x[0]/2)*scale**2/1000,temp))
+
+def _dilute_D_to_rad(D,T):
+    """Does the computation to get the radius of a particle out of a
+    diffusion constant assuming a dilute system in water.
+    Assumes that D has units of [m]/[s]
+    """
+    nu = _nu(T)                         # m[Pa]*[s] 
+    
+    nu = nu/1000                        # [Pa] *[s]
+    
+    k = 1.3806504*(10**-23)             # [J]/[K]  = Pa * [m]^3 / [K]
+
+    T = T + _C_to_K                     # [K]
+    #D = (k*T )/6pi nu r
+    
+    D = D                               # [m]^2/[s]
+    
+    r = (k * T)/(6 * numpy.pi * nu * D)
+
+def _nu(T):
+    """ computes the viscosity of water.  Taken from:
+    http://www.ddbst.com/en/online/Online_Calc_visc_Form.php"""
+    A = -3.7188
+    B = 578.919
+    C = -137.546
+    K_min = 273
+    K_max = 373
+    
+
+    T = T + _C_to_K
+
+    if any(T> K_max) or any(T< K_min):
+        raise Exception("out side of validity range")
+
+    return numpy.exp(A + B/(C + (T)))
 def delete_msd(comp_key,conn):
     """Deletes all record of a computation from both the data files and the data base """
     # get data file name
