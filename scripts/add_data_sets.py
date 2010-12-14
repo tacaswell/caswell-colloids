@@ -113,7 +113,7 @@ def ask_dtype(fname):
 def guess_sname(fname):
     """Parse the file name and attempt to guess the sample name"""
     # see if there is a file naming the sample
-    f = _base_path + os.path.dirname(fname) + '/sname.txt'
+    f = os.path.dirname(fname) + '/sname.txt'
     if os.path.isfile(f):
         sf = open(f)
         sname = sf.readline().strip()
@@ -140,11 +140,12 @@ def ask_sname(fname):
 def guess_date(fname):
     """Tries to guess the date from the name"""
     fsplit = fname.split('/')
-    if re.match('\d{8}',fsplit[0]):
-        return datetime.strptime(fsplit[0],'%Y%m%d').date().isoformat()
-    if re.match('\d{4}-\d{2}-\d{2}',fsplit[0]):
-        return datetime.strptime(fsplit[0],'%Y-%m-%d').date().isoformat()
-
+    for f in fsplit:
+        if re.match('\d{4}-\d{2}-\d{2}',f):
+            return datetime.strptime(f,'%Y-%m-%d').date().isoformat()
+        if re.match('\d{8}',f):
+            return datetime.strptime(f,'%Y%m%d').date().isoformat()
+        
     return ask_date(fname)
 
 def ask_date(fname):
@@ -200,7 +201,7 @@ def query_fun(fname,key,value,func):
 
 def extract_md(fname):
     """takes a guess at parsing, asks for validation, returns tuple"""
-    fname = strip_base(fname)
+#    fname = strip_base(fname)
     md = guess_meta_data(fname)
     display_meta_data(fname, *md)
     resp = util.query_yes_no('are these values correct')
@@ -213,11 +214,21 @@ def process_fname(conn,fname):
     """Take in a connection and a database, parse the fname and enter into database"""
     fname = os.path.realpath(fname)
     if check_existance(conn,fname):
-        raise "already exists in database"
+        raise Exception("already exists in database")
     md = extract_md(fname)
     print (fname,) + md
     conn.execute('insert into dsets (fname,dtype,sname,temp,date) values (?,?,?,?,?)',(fname,) + md)
     conn.commit()
+
+
+def process_fname_dry(conn,fname):
+    """Take in a connection and a database, parse the fname and enter into database"""
+    fname = os.path.realpath(fname)
+    if check_existance(conn,fname):
+        return
+    md = extract_md(fname)
+    print (fname,) + md
+    
 
 def visit(conn,dirname,names):
     """Function for walk """
@@ -238,8 +249,33 @@ def visit(conn,dirname,names):
                 # and not part a mulit part file
                 multi_f = re.findall('file\d{3}',f)
                 if len(multi_f) ==0:
-                    process_fname(conn,fname)
+                    try:
+                        process_fname(conn,fname)
+                    except(Exception):
+                        print 'already exists, moving on'
     
+def visit_dry(conn,dirname,names):
+    """Function for walk """
+
+    # way to skip directories I don't like
+    if dirname.find('stupid') != -1:
+        return
+    
+    # loop over names
+    for f in names:
+        # assemble fqn
+        fname = dirname + '/'+f
+        # if it is a file, not a directory try to process it
+        if os.path.isfile(fname):
+            (base,ext) = os.path.splitext(fname)
+            # if the file is a tiff
+            if ext == '.tif':
+                # and not part a mulit part file
+                multi_f = re.findall('file\d{3}',f)
+                if len(multi_f) ==0:
+                    process_fname_dry(conn,fname)
+    
+
 def visit2(conn,dirname,names):
     # way to skip directories I don't like
     if dirname.find('stupid') != -1:
@@ -259,7 +295,7 @@ def visit2(conn,dirname,names):
                 if len(multi_f) ==0:
                     fname = os.path.realpath(fname)
                     if not check_existance(conn,fname):
-                        print fname
+                        print 'to add: ' + fname
     
             
 def check_loop(path,conn):
@@ -270,3 +306,8 @@ def check_loop(path,conn):
 def add_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
     os.path.walk(path,visit,conn)
+
+            
+def dry_loop(path,conn):
+    """Path is the top level directory to look in, uses walk """
+    os.path.walk(path,visit_dry,conn)
