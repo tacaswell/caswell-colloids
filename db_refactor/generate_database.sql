@@ -30,6 +30,7 @@ CREATE TABLE iden(
 	mask_rad INTEGER NOT NULL,
         top_cut FLOAT NOT NULL,
 	frames_avged INTEGER NOT NULL,
+	fout TEXT NOT NULL,
 	FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
 	FOREIGN KEY(comp_key) REFERENCES comps(comp_key)
 );
@@ -43,6 +44,8 @@ CREATE TABLE gofr (
        shift_cut FLOAT ,
        rg_cut FLOAT ,
        e_cut FLOAT ,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -58,6 +61,8 @@ CREATE TABLE gofr_by_plane(
        shift_cut FLOAT ,
        rg_cut FLOAT ,
        e_cut FLOAT ,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -71,12 +76,14 @@ CREATE TABLE tracking (
        shift_cut FLOAT ,
        rg_cut FLOAT ,
        e_cut FLOAT ,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
 );
 
-CREATE TABLE msd (
+CREATE TABLE msd_old (
        comp_key INTEGER PRIMARY KEY,
        iden_key INTEGER NOT NULL,
        dset_key INTEGER NOT NULL,
@@ -86,20 +93,25 @@ CREATE TABLE msd (
        shift_cut FLOAT ,
        rg_cut FLOAT ,
        e_cut FLOAT ,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
 );
 
-CREATE TABLE msd_trk (
+CREATE TABLE msd (
        comp_key INTEGER PRIMARY KEY,
-       trk_key INTEGER NOT NULL,
+       iden_key INTEGER NOT NULL,
+       track_key INTEGER NOT NULL,
        dset_key INTEGER NOT NULL,
        msd_steps INTEGER NOT NULL,
        min_track_length INTEGER NOT NULL,
-       FOREIGN KEY(dset_key) REFERENCES dsets(dest_key),
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
+       FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
-       FOREIGN KEY(trk_key) REFERENCES tracking(comp_key)
+       FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
 );
 
 CREATE TABLE trk_stat (
@@ -113,6 +125,8 @@ CREATE TABLE trk_stat (
        shift_cut FLOAT ,
        rg_cut FLOAT ,
        e_cut FLOAT ,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -127,6 +141,8 @@ CREATE TABLE trk_stat_trk (
        steps INTEGER NOT NULL,
        hist_binsINTEGER NOT NULL,
        hist_range FLOAT NOT NULL,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(trk_key) REFERENCES tracking(comp_key)
@@ -140,23 +156,9 @@ CREATE TABLE vanHove (
        max_step INTEGER NOT NULL,
        max_range FLOAT NOT NULL,
        nbins INTEGER NOT NULL,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
 );
-
-CREATE TABLE msd_sweep (
-       comp_key     INTEGER  PRIMARY KEY ,
-       dset_key     INTEGER  NOT NULL	,
-       iden_key    INTEGER  NOT NULL    ,
-       track_key    INTEGER  NOT NULL    ,
-       trk_len_min  INTEGER  NOT NULL    ,
-       trk_len_step INTEGER  NOT NULL    ,
-       steps        INTEGER  NOT NULL    ,
-       FOREIGN KEY(comp_key)  REFERENCES comps(comp_key),		
-       FOREIGN KEY(dset_key)  REFERENCES dsets(dset_key),
-       FOREIGN KEY(track_key) REFERENCES tracking(comp_key),
-       FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
-
-);
-

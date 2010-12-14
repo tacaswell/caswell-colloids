@@ -50,46 +50,55 @@ def fill_comps(conn_old,conn_new):
 def fill_iden(conn_old,conn_new):
 
     fields= ['comp_key',
-                'dset_key',
-                'threshold',
-                'hwhm',
-                'p_rad',
-                'd_rad',
-                'mask_rad',
-                'top_cut']
+             'dset_key',
+             'threshold',
+             'hwhm',
+             'p_rad',
+             'd_rad',
+             'mask_rad',
+             'top_cut'
+             ]
+    c_flds = ['fout']
     
-    fields_in = fields + ['avg_count']
+    c_old = conn_old.execute("select fout from comps where comp_key in (select comp_key from Iden_prams)").fetchall()
+
+    
     # get data from the strait iden table
     iden_old = conn_old.execute("select " + ','.join(fields) + " from Iden_prams ")
-
+    fields_in = fields + ['avg_count']
     fields.append('frames_avged')
-    for io in iden_old:
+    for (io,f) in zip(iden_old,c_old):
         if( io[0] <580 and io[0] >568):
             conn_new.execute("insert into iden (" +
-                             ','.join(fields) + ") values ("
-                             + ','.join(['?']*len(fields)) + ")",
-                             io + (0,))
+                             ','.join(fields + c_flds) + ") values ("
+                             + ','.join(['?']*len(fields + c_flds)) + ")",
+                             io + (0,) + f)
         else:
             conn_new.execute("insert into iden (" +
-                             ','.join(fields) + ") values ("
-                             + ','.join(['?']*len(fields)) + ")",
-                             io + (0,))
+                             ','.join(fields+c_flds) + ") values ("
+                             + ','.join(['?']*len(fields+c_flds)) + ")",
+                             io + (1,) +f)
+
     # get data from iden_avg
+    
+    c_old = conn_old.execute("select fout from comps where comp_key in (select comp_key from Iden_avg_prams)").fetchall()
     iden_old = conn_old.execute("select " + ','.join(fields_in) + " from Iden_avg_prams ")
-    for io in iden_old:
+
+    for (io,f) in zip(iden_old,c_old):
         conn_new.execute("insert into iden (" +
-                         ','.join(fields) + ") values ("
-                         + ','.join(['?']*len(fields)) + ")",
-                         io)
+                         ','.join(fields +c_flds) + ") values ("
+                         + ','.join(['?']*len(fields  + c_flds)) + ")",
+                         io + f)
     
     conn_new.commit()
 
     pass
 
 def _fill_fun(conn_old,conn_new,t_old,t_new,f_flds,i_flds):
-
+    c_flds = ['fin','fout']
     p_old = conn_old.execute("select " + ','.join(f_flds) + " from " + t_old).fetchall()
-    for p in p_old:
+    c_old = conn_old.execute("select fin,fout from comps where comp_key in (select comp_key from " + t_old + ")").fetchall()
+    for p,f in zip(p_old,c_old):
         # get the iden parameters, this is only valid because of how
         # the code has been run, always using the values selected when
         # Iden was run, in general this may not work
@@ -101,7 +110,6 @@ def _fill_fun(conn_old,conn_new,t_old,t_new,f_flds,i_flds):
         else:
             (i_type,) = conn_old.execute("select function from comps where comp_key = ?",iden_key).fetchone()
         if i_type == 'Iden':
-
             i_pram += conn_old.execute("select " + ','.join(i_flds) + " from Iden_prams where comp_key = ?",iden_key).fetchone()
         elif i_type =='Iden_avg':
             i_pram += conn_old.execute("select " + ','.join(i_flds) + " from Iden_avg_prams where comp_key = ?",iden_key).fetchone()
@@ -109,8 +117,8 @@ def _fill_fun(conn_old,conn_new,t_old,t_new,f_flds,i_flds):
             print p
 
 
-        conn_new.execute("insert into "+ t_new +" (" + ','.join(f_flds+i_flds) + ") values (" +
-                         ','.join(['?']*len(f_flds + i_flds)) + ")",p + i_pram)
+        conn_new.execute("insert into "+ t_new +" (" + ','.join(f_flds+i_flds + c_flds) + ") values (" +
+                         ','.join(['?']*len(f_flds + i_flds+ c_flds)) + ")",p + i_pram +f)
     
     conn_new.commit()
 
@@ -166,7 +174,7 @@ def fill_msd(conn_old,conn_new):
     i_flds = ['shift_cut',
               'rg_cut',
               'e_cut']
-    _fill_fun(conn_old,conn_new,'msd_prams','msd',g_flds,i_flds)
+    _fill_fun(conn_old,conn_new,'msd_prams','msd_old',g_flds,i_flds)
     
     pass
 
@@ -193,13 +201,14 @@ def fill_vanHove(conn_old,conn_new):
             'max_step',
             'max_range',
             'nbins']
+    c_flds = ['fin','fout']
     
-    
+    c_old = conn_old.execute("select fin,fout from comps where comp_key in (select comp_key from vanHove_prams)").fetchall()    
     # get data from the strait iden table
     vh_old = conn_old.execute("select " + ','.join(vh_f) + " from vanHove_prams ")
-    for vh in vh_old:
-        conn_new.execute("insert into vanHove (" + ','.join(vh_f) +
-                         ") values ("+ ','.join(['?']*len(vh_f)) + ")",vh)
+    for (vh,f) in zip(vh_old,c_old):
+        conn_new.execute("insert into vanHove (" + ','.join(vh_f+c_flds) +
+                         ") values ("+ ','.join(['?']*len(vh_f+c_flds)) + ")",vh+f)
         
 def main(conn,conn_new):
     fill_func_names(conn,conn_new)
