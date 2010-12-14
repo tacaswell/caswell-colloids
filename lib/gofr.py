@@ -325,16 +325,16 @@ def tmp_series_gn2D(comp_list,conn):
     comp_list : list of 1 element tuple that contain the computation
     number to be plotted
     """
-
+    
     res = [conn.execute("select comp_key,fout\
     from comps where comps.comp_key = ?",c).fetchone()
            for c in comp_list]
 
-    res.sort(key=lambda x:x[1])
+    
     
     temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     print temps
-
+    
     gofrs = [get_gofr2D(r[0],conn) for r in res]
     fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
     peaks = [find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
@@ -492,7 +492,7 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     else:
         gn_fig = g1_fig
         gn_ax = g1_fig.gca()
-    
+        
     temps = [get_gofr_tmp(r[1],r[0],conn)+T_correction for r in res]
     tmax = max(temps)
     tmin = min(temps)
@@ -563,6 +563,25 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
 
     return zip(gn_t,gn_g)
 
+def tmp_series_tables(comp_list,conn):
+    
+    res = [conn.execute("select comp_key,fout\
+    from comps where comps.comp_key = ?",c).fetchone()
+           for c in comp_list]
+
+    
+    gofrs = [get_gofr2D(r[0],conn) for r in res]
+        
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+
+    fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
+    peaks = [find_peaks_fit(g,fitting.fun_decay_exp_inv_dr,p.beta)
+             for g,p in zip(gofrs,fits)]
+
+    # make max location table
+    max_table = ['|%.2f|'%t + '%.3f|'%k[0][0][0] + '|'.join(['%.3f'%i for i in diff([p[0]/k[0][0][0] for p in k[0]])]) + '|' for k,t in zip(peaks,temps)]
+    min_table = ['|%.2f|'%t + '%.3f|'%k[0][0][0]+'%.3f|'%(k[1][0][0]/k[0][0][0]) + '|'.join(['%.3f'%i for i in diff([p[0]/k[0][0][0] for p in k[1]])]) + '|' for k,t in zip(peaks,temps)]
+    
 ####################    
 #by plane functions#
 ####################    
