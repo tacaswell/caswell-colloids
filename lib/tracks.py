@@ -21,6 +21,7 @@ import plots
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import itertools
 import general as gen
 from general import ff
 from general import fd
@@ -38,7 +39,36 @@ def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
     if  nxt != -1:
         extract_track(F,frame_num+1,nxt,track_group,iden_group,trk)
     return trk
-        
+
+def extract_all_tracks(track_comp_key,conn,min_track_len):
+    '''Extracts all of the tracks in a file'''
+    # make sure track id is valid
+    # extract comp_id
+    (fin,dset_key) = conn.execute("select fout,dset_key from comps where\
+    function='tracking' and comp_key=?",
+                                  (track_comp_key,)).fetchone()
+    (d_temp,) = conn.execute("select temp from dsets where key = ?",
+                             (dset_key,)).fetchone()
+    (iden_key, ) = conn.execute("select iden_key from tracking_prams where comp_key=?",
+                                (track_comp_key,)).fetchone()
+
+    # open file
+    F = h5py.File(fin,'r')
+    try:
+        # get list of particles that are of the minimum length or longer
+        t_lst = [(i,p,l) for (i,p,l) in
+                 itertools.izip( F[fd('tracking',track_comp_key)]['start_particle'],
+                                 F[fd('tracking',track_comp_key)]['start_plane'],
+                                 F[fd('tracking',track_comp_key)]['length'])
+                 if l > min_track_len]
+        tracks = [extract_track(F,p,i,track_comp_key,iden_key,[]) for (i,p,l) in t_lst]
+    finally:
+        # close hdf file and clean up
+        F.close()
+        del F
+
+    return tracks
+
 def print_info(F,frame_num,part_num,comp_num):
     """Prints returns (prev_part,next_part,track_id) for the given
     particle and computation"""
