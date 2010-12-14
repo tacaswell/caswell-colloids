@@ -76,7 +76,7 @@ class Figure:
         else:
             txt = str(len(self.leg_hands))
         if not ('lw' in kwargs or 'linewidth' in kwargs):
-            kwargs['lw'] = 3
+            kwargs['lw'] = 2
 
         self.leg_hands.append(self.func(self.ax,x,y,*args,**kwargs))
         self.leg_strs.append(txt)
