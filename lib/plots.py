@@ -99,6 +99,11 @@ class Figure:
         self.ax.set_xlim(x_lim)
         self.ax.set_ylim(y_lim)
         plt.draw()
+
+
+    def save(self,fname):
+        save_figure(fname,self.fig)
+        
 class color_mapper:
     def __init__(self,mn,mx,name = 'jet'):
         self._mn = mn
@@ -147,6 +152,7 @@ def save_figure(fname,fig):
     spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
     if not  os.path.isdir(spath):
         os.makedirs(spath,0755)
-    if os.path.isfile(spath+fname+'.png'):
+    if os.path.isfile(spath+fname+'.png') or os.path.isfile(spath+fname+'.eps'):
         raise Exception("file name exists: " + spath + fname)
-    fig.savefig(spath + fname)
+    fig.savefig(spath + fname+'.eps',format='eps')
+    fig.savefig(spath + fname+'.png',format='png')
