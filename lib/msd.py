@@ -126,7 +126,7 @@ def series_fit(comp_key_lst,conn):
     
     
 
-def fit_msd(comp_key,conn):
+def fit_msd(comp_key,conn,make_plot = False):
     (fin,) = conn.execute("select fout from msd where comp_key = ?",(comp_key,)).fetchone()
     Fin = h5py.File(fin,'r')
     g_name = _fd('mean_squared_disp',comp_key)
@@ -138,29 +138,46 @@ def fit_msd(comp_key,conn):
     del Fin
     
     t = (numpy.arange(len(msd))+1)*dt
-
+     
     (x,r,rn,s) = numpy.linalg.lstsq(numpy.transpose(numpy.array([t,numpy.ones(len(msd))])),msd)
 
+    if(make_plot):
+        fig = plt.Figure('t [ms]','msd [px^2]','msd and fit')
+        fig.plot(t,msd,'x',label= 'msd')
+        print x[1]
+        fig.plot(t,t*x[0] + x[1],label= 'fit')
+
     scale = 6.45/60                     # u[m]/[pix]
-    return (x[0],temp,_dilute_D_to_rad((x[0]/2)*scale**2/1000,temp))
+
+    # lamda_x = sqrt(2Dt) (Einstein 1905)
+    # msd = 2*lambda_x^2 = 4 D t (Einstein 1905)
+    # the extra 2 is because I am looking at total displacement in 2D
+    D = (x[0]/2*2)*(scale**2)*1000      # u[m]^2/sec
+    r = _dilute_D_to_rad(D,temp)         # u[m]
+    
+    return (x[0],temp,r)
 
 def _dilute_D_to_rad(D,T):
     """Does the computation to get the radius of a particle out of a
     diffusion constant assuming a dilute system in water.
-    Assumes that D has units of [m]/[s]
+    Assumes that D has units of (u[m])^2/[s].
+
+    returns the radius in u[m]
     """
     nu = _nu(T)                         # m[Pa]*[s] 
     
     nu = nu/1000                        # [Pa] *[s]
     
     k = 1.3806504*(10**-23)             # [J]/[K]  = Pa * [m]^3 / [K]
-
+    
     T = T + _C_to_K                     # [K]
     #D = (k*T )/6pi nu r
-    
-    D = D                               # [m]^2/[s]
+    print (T,nu*1000)
+    D = D*(10**-12)                     # ([m])^2/[s]
     
     r = (k * T)/(6 * numpy.pi * nu * D)
+
+    return r*(10**6)
 
 def _nu(T):
     """ computes the viscosity of water.  Taken from:
@@ -174,10 +191,16 @@ def _nu(T):
 
     T = T + _C_to_K
 
-    if any(T> K_max) or any(T< K_min):
+    
+    
+    if T> K_max or T< K_min:
         raise Exception("out side of validity range")
 
     return numpy.exp(A + B/(C + (T)))
+
+    
+    
+
 def delete_msd(comp_key,conn):
     """Deletes all record of a computation from both the data files and the data base """
     # get data file name
