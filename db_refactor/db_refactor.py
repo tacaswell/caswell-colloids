@@ -58,9 +58,9 @@ def fill_iden(conn_old,conn_new):
              'mask_rad',
              'top_cut'
              ]
-    c_flds = ['fout']
-    
-    c_old = conn_old.execute("select fout from comps where comp_key in (select comp_key from Iden_prams)").fetchall()
+    c_flds = ['fout','date']
+
+    c_old = conn_old.execute("select " + ','.join(c_flds) + " from comps where comp_key in (select comp_key from Iden_prams)").fetchall()
 
     
     # get data from the strait iden table
@@ -81,7 +81,7 @@ def fill_iden(conn_old,conn_new):
 
     # get data from iden_avg
     
-    c_old = conn_old.execute("select fout from comps where comp_key in (select comp_key from Iden_avg_prams)").fetchall()
+    c_old = conn_old.execute("select " + ','.join(c_flds) + " from comps where comp_key in (select comp_key from Iden_avg_prams)").fetchall()
     iden_old = conn_old.execute("select " + ','.join(fields_in) + " from Iden_avg_prams ")
 
     for (io,f) in zip(iden_old,c_old):
@@ -95,9 +95,11 @@ def fill_iden(conn_old,conn_new):
     pass
 
 def _fill_fun(conn_old,conn_new,t_old,t_new,f_flds,i_flds):
-    c_flds = ['fin','fout']
+    c_flds = ['fin','fout','date']
+
     p_old = conn_old.execute("select " + ','.join(f_flds) + " from " + t_old).fetchall()
-    c_old = conn_old.execute("select fin,fout from comps where comp_key in (select comp_key from " + t_old + ")").fetchall()
+
+    c_old = conn_old.execute("select " + ','.join(c_flds) + " from comps where comp_key in (select comp_key from " + t_old + ")").fetchall()
     for p,f in zip(p_old,c_old):
         # get the iden parameters, this is only valid because of how
         # the code has been run, always using the values selected when
@@ -201,9 +203,9 @@ def fill_vanHove(conn_old,conn_new):
             'max_step',
             'max_range',
             'nbins']
-    c_flds = ['fin','fout']
+    c_flds = ['fin','fout','date']
     
-    c_old = conn_old.execute("select fin,fout from comps where comp_key in (select comp_key from vanHove_prams)").fetchall()    
+    c_old = conn_old.execute("select " + ','.join(c_flds) + " from comps where comp_key in (select comp_key from vanHove_prams)").fetchall()    
     # get data from the strait iden table
     vh_old = conn_old.execute("select " + ','.join(vh_f) + " from vanHove_prams ")
     for (vh,f) in zip(vh_old,c_old):

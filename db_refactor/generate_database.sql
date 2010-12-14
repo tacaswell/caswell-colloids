@@ -31,6 +31,7 @@ CREATE TABLE iden(
         top_cut FLOAT NOT NULL,
 	frames_avged INTEGER NOT NULL,
 	fout TEXT NOT NULL,
+	date DATE NOT NULL,
 	FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
 	FOREIGN KEY(comp_key) REFERENCES comps(comp_key)
 );
@@ -46,6 +47,7 @@ CREATE TABLE gofr (
        e_cut FLOAT ,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -63,6 +65,7 @@ CREATE TABLE gofr_by_plane(
        e_cut FLOAT ,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -78,6 +81,7 @@ CREATE TABLE tracking (
        e_cut FLOAT ,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -95,6 +99,7 @@ CREATE TABLE msd_old (
        e_cut FLOAT ,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -109,6 +114,7 @@ CREATE TABLE msd (
        min_track_length INTEGER NOT NULL,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
@@ -127,6 +133,7 @@ CREATE TABLE trk_stat (
        e_cut FLOAT ,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(iden_key) REFERENCES iden(comp_key)
@@ -143,6 +150,7 @@ CREATE TABLE trk_stat_trk (
        hist_range FLOAT NOT NULL,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(trk_key) REFERENCES tracking(comp_key)
@@ -158,6 +166,7 @@ CREATE TABLE vanHove (
        nbins INTEGER NOT NULL,
        fin TEXT NOT NULL,
        fout TEXT NOT NULL,
+       date DATE NOT NULL,
        FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
