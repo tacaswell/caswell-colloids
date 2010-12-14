@@ -23,6 +23,8 @@ from datetime import date
 from lib.SortedCollection import SortedCollection
 import os
 
+import h5py
+
 class Temp_log:
     
     def __init__(self):
@@ -46,7 +48,7 @@ class Temp_log:
         temp = float(temp.strip())
         return (datetime.combine(self.cur_date,tm),temp)
 
-    def parseFile(self,fname):
+    def _parseFile(self,fname):
         # open file to deal with it
         f = open(fname,'r')
         # get the start time and date
@@ -73,7 +75,7 @@ class Temp_log:
     
     def addFile(self,fname):
         """Adds the data from a file to this log """
-        (tmp,units) = self.parseFile(fname)
+        (tmp,units) = self._parseFile(fname)
         if (self.units is not None) and (units != self.units):
             print units
             print self.units
@@ -85,6 +87,7 @@ class Temp_log:
         
     def get_temp(self,in_time):
         """returns the temperature at the time asked"""
+        
         temp =  self.temp_collection.find(in_time.replace(microsecond=0))[1]
         
         return temp
@@ -97,7 +100,7 @@ class Temp_log:
                     self.addFile(root+f)
         
 
-import h5py
+
 
 def set_plane_temp(iden_key,conn,temp_log):
     """Takes an Iden_key, a database connection and a Temp_log object
