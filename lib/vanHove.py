@@ -103,7 +103,7 @@ def extract_vanHove(c,conn,time_step,count_cut,wind=1,norm=False):
     This function takes care of looking up the correct files and dealing with
     the hdf layer.
     """
-    (fin,) = conn.execute("select fout from comps where comp_key = ?",c).fetchone()
+    (fin,) = conn.execute("select fout from vanHove where comp_key = ?",c).fetchone()
     Fin = h5py.File(fin,'r')
     g = Fin[fd('vanHove',c[0])]
 
@@ -297,7 +297,7 @@ def plot_vanHove_dt(comp,conn,start,step_size,steps):
     del Fin
 
 def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gauss,norm=False):
-    '''Plots a grid array of the Von Hove functions at the time step
+    '''Plots a grid array  of the Von Hove functions at the time step
     given for all of the comps in the comp_lst'''
 
     
@@ -353,6 +353,56 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     mplt.draw()
 
     return outs,tmps
+
+
+def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=False):
+    ''''''
+
+    
+    
+    
+    
+    data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
+    tmps = [d[2] for d in data]
+    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+    data.sort(key=lambda x: -x[2])
+    if title is None:
+        title = 'van Hove'
+        cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+
+    fig = plt.Figure('T [C]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    for (edges,count,temp,dtime,x_lim) in data:
+        fig.plot(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+        
+    
+
+    
+
+
+def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True):
+    '''the half-width half max of the van Hove distrobutions vs
+    temperature at a fixed time step'''
+    
+
+    
+    
+        
+    data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
+    tmps = [d[2] for d in data]
+    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+    data.sort(key=lambda x: x[2])
+    
+    T = [d[2] for d in data]
+    hwhm = [_vh_hwhm(d[0],d[1]) for d in data]
+    if title is None:
+        title = 'Half width half max vs Temperature'
+
+    print T
+    print hwhm
+    fig = plt.Figure('T [C]','hwhm [px]',title)
+    fig.plot(T,hwhm,'x-',label = 'hwhm')
+        
+        
 
 def figure_out_grid(tot):
     """Computes the 'ideal' grid dimensions for the total number of
@@ -438,3 +488,13 @@ def fix_vanHove_dtime(vh_key,conn):
 
     Fin.close()
     del Fin
+
+
+def _vh_hwhm(edges,count):
+    """Finds the full width half max of the van Hove """
+
+    # find the maximum value
+
+    c_max = np.max(count)
+    indx = np.nonzero(count >= (c_max/2))[0]
+    return (edges[indx[-1]] - edges[indx[0]])/2
