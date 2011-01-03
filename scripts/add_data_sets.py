@@ -29,7 +29,7 @@ _base_path = '/home/tcaswell/colloids/data/polyNIPAM_batch_12/'
 def check_existance(conn,fname):
     '''Checks the connection to see if there is already an entry for
     this filename.  Returns bool'''
-    res = conn.execute("select key from dsets where fname = ?",(fname,)).fetchall()
+    res = conn.execute("select dset_key from dsets where fname = ?",(fname,)).fetchall()
     if len(res) >0:
         return True
     
@@ -162,12 +162,12 @@ def ask_date(fname):
         
     
 
-def display_meta_data(fname,dtype,sname,temp,date):
+def display_meta_data(fname,dtype,sname,date):
     """Displays a nicely formatted output of meta data for confirmation"""
     print "fname: " + fname
     print 'dtype: '+str(dtype)
     print 'sname: '+str(sname)
-    print 'temp: ' +str( temp)
+    #print 'temp: ' +str( temp)
     print 'date: ' +str( date)
 
     
@@ -178,17 +178,17 @@ def strip_base(fname):
     
 def guess_meta_data(fname):
     """Calls the specific functions above"""
-    return guess_dtype(fname),guess_sname(fname),guess_temp(fname),guess_date(fname)
+    return guess_dtype(fname),guess_sname(fname),guess_date(fname)
 
-def ask_meta_data(fname,dtype,sname,temp,date):
+def ask_meta_data(fname,dtype,sname,date):
     """asks if the values are correct and queries for replacements"""
     print "fname: " + fname
     dtype = query_fun(fname,'dtype',dtype,ask_dtype)
     sname = query_fun(fname,'sname',sname,ask_sname)
-    temp = query_fun(fname,'temp',temp,ask_temp)
+    #temp = query_fun(fname,'temp',temp,ask_temp)
     date = query_fun(fname,'date',date,ask_date)
 
-    return dtype,sname,temp,date
+    return dtype,sname,date
     
 def query_fun(fname,key,value,func):
     """asks if the value is correct for the key, if not, calls func to fix it"""
@@ -217,7 +217,7 @@ def process_fname(conn,fname):
         raise Exception("already exists in database")
     md = extract_md(fname)
     print (fname,) + md
-    conn.execute('insert into dsets (fname,dtype,sname,temp,date) values (?,?,?,?,?)',(fname,) + md)
+    conn.execute('insert into dsets (fname,dtype,sname,ddate) values (?,?,?,?)',(fname,) + md)
     conn.commit()
 
 
@@ -311,3 +311,4 @@ def add_loop(path,conn):
 def dry_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
     os.path.walk(path,visit_dry,conn)
+    
