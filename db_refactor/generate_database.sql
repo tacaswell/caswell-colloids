@@ -3,7 +3,14 @@ CREATE TABLE dsets (
         fname TEXT NOT NULL UNIQUE, 
         dtype TEXT NOT NULL,
         ddate DATE NOT NULL,
-        sname TEXT NOT NULL
+        sname TEXT NOT NULL,
+	ftype INTEGER NOT NULL,
+	FOREIGN KEY(ftype) REFERENCES format_types(ftype_key)
+);
+
+CREATE TABLE func_names(
+       func_key INTEGER PRIMARY KEY,
+       func_name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE comps(
@@ -14,9 +21,10 @@ CREATE TABLE comps(
 	FOREIGN KEY(func_key) REFERENCES func_names(func_key)
 );
 
-CREATE TABLE func_names(
-       func_key INTEGER PRIMARY KEY,
-       func_name TEXT NOT NULL UNIQUE
+
+CREATE TABLE format_types(
+       ftype_key  INTEGER PRIMARY KEY,
+       ftype_name TEXT NOT NULL UNIQUE
 );
 
 
