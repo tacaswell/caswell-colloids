@@ -15,6 +15,9 @@
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 
+
+# this module does the heavy lifting of a major refactoring job on the
+# main database
 import sqlite3
 
 def fill_func_names(conn_old,conn_new):
