@@ -152,7 +152,7 @@ def fit_msd(comp_key,conn,make_plot = False):
     # lamda_x = sqrt(2Dt) (Einstein 1905)
     # msd = 2*lambda_x^2 = 4 D t (Einstein 1905)
     # the extra 2 is because I am looking at total displacement in 2D
-    D = (x[0]/2*2)*(scale**2)*1000      # u[m]^2/sec
+    D = (x[0]/4)*(scale**2)*1000      # u[m]^2/sec
     r = _dilute_D_to_rad(D,temp)         # u[m]
     
     return (x[0],temp,r)
