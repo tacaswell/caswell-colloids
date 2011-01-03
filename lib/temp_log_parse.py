@@ -106,7 +106,7 @@ def set_plane_temp(iden_key,conn,temp_log):
     """Takes an Iden_key, a database connection and a Temp_log object
     and sets the plane temperatures for the iden file"""
 
-    (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
+    (fname,) = conn.execute("select fout from iden where comp_key =?",(iden_key,)).fetchone()
     F = h5py.File(fname,'r+')
     
     for g in F:
