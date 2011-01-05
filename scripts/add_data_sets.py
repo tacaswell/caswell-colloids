@@ -113,23 +113,17 @@ def ask_dtype(fname):
 def guess_sname(fname):
     """Parse the file name and attempt to guess the sample name"""
     # see if there is a file naming the sample
-    f = os.path.dirname(fname) + '/sname.txt'
-    if os.path.isfile(f):
-        sf = open(f)
-        sname = sf.readline().strip()
-        sf.close()
-    else:
-        # try to guess from naming
-        fsplit = fname.split('/')
-        if len(fsplit) > 2:
-            sname = fsplit[1]
-            if fsplit[-1].find('thin') != -1:
-                sname = sname + '-thin'
-                
-            else:
-                sname = ask_sname(fname)
-        else:
-            sname = ask_sname(fname)
+    
+    path_split = os.path.dirname(fname).split('/')
+    for j in range(len(path_split),6,-1):
+        f = '/'.join(path_split[0:(j+1)]) + '/sname.txt'
+        if os.path.isfile(f):
+            sf = open(f)
+            sname = sf.readline().strip()
+            sf.close()
+            return sname
+
+    sname = ask_sname(fname)
     return sname
 
 def ask_sname(fname):
@@ -210,94 +204,75 @@ def extract_md(fname):
     elif resp == 'no':
         return ask_meta_data(fname,*md)
 
-def process_fname(conn,fname):
+def process_fname(conn,fname,ftype):
     """Take in a connection and a database, parse the fname and enter into database"""
     fname = os.path.realpath(fname)
     if check_existance(conn,fname):
         raise Exception("already exists in database")
     md = extract_md(fname)
-    print (fname,) + md
-    conn.execute('insert into dsets (fname,dtype,sname,ddate) values (?,?,?,?)',(fname,) + md)
+    md = (fname,) + md + (ftype,)
+    conn.execute('insert into dsets (fname,dtype,sname,ddate,ftype) values (?,?,?,?,?)',md)
     conn.commit()
 
 
-def process_fname_dry(conn,fname):
+def process_fname_dry(conn,fname,ftype):
     """Take in a connection and a database, parse the fname and enter into database"""
     fname = os.path.realpath(fname)
     if check_existance(conn,fname):
         return
     md = extract_md(fname)
     print (fname,) + md
-    
 
-def visit(conn,dirname,names):
+
+    
+def _visit(args,dirname,names):
     """Function for walk """
 
+    (fun,conn) = args
+    
     # way to skip directories I don't like
     if dirname.find('stupid') != -1:
         return
-    
-    # loop over names
-    for f in names:
-        # assemble fqn
-        fname = dirname + '/'+f
-        # if it is a file, not a directory try to process it
-        if os.path.isfile(fname):
-            (base,ext) = os.path.splitext(fname)
-            # if the file is a tiff
-            if ext == '.tif':
-                # and not part a mulit part file
-                multi_f = re.findall('file\d{3}',f)
-                if len(multi_f) ==0:
-                    try:
-                        process_fname(conn,fname)
-                    except(Exception):
-                        print 'already exists, moving on'
-    
-def visit_dry(conn,dirname,names):
-    """Function for walk """
+    # if there are less than 100 names, assume we are in a directory
+    # of folders and stacks rather than a folder with a series in it
+    if len(names)<100:
+        # loop over names
+        for f in names:
+            # assemble fqn
+            fname = dirname + '/'+f
+            # if it is a file, not a directory try to process it
+            if os.path.isfile(fname):
+                (base,ext) = os.path.splitext(fname)
+                # if the file is a tiff
+                if ext == '.tif':
+                    # and not part a mulit part file
+                    multi_f = re.findall('file\d{3}',f)
+                    if len(multi_f) ==0:
+                        fun(conn,fname,'1')
+    else:
+        
+        # get file names that are not directories
+        files_lst = [f for f in names if os.path.isfile(dirname + '/' + f)]
+        # split file name
+        splt_names = [re.search('(.*?)([0-9]*).tif',f).groups() for f in files_lst
+                      if f[-4:] == '.tif']
+                
+        # get unique base names
+        seen = []
+        unique_base = [c[0] for c in splt_names if not (c[0] in seen or seen.append(c[0]))]
+        del seen
+        
+        for f in unique_base:
+            fun(conn,dirname + '/' + f,'2')
+        
+def f_print(conn,fname,ftype):
+    print fname
 
-    # way to skip directories I don't like
-    if dirname.find('stupid') != -1:
-        return
-    
-    # loop over names
-    for f in names:
-        # assemble fqn
-        fname = dirname + '/'+f
-        # if it is a file, not a directory try to process it
-        if os.path.isfile(fname):
-            (base,ext) = os.path.splitext(fname)
-            # if the file is a tiff
-            if ext == '.tif':
-                # and not part a mulit part file
-                multi_f = re.findall('file\d{3}',f)
-                if len(multi_f) ==0:
-                    process_fname_dry(conn,fname)
-    
+def print_loop(path,conn):
+    """Path is the top level directory to look in, uses walk """
+    os.path.walk(path,_visit,(f_print,conn))
 
-def visit2(conn,dirname,names):
-    # way to skip directories I don't like
-    if dirname.find('stupid') != -1:
-        return
     
-    # loop over names
-    for f in names:
-        # assemble fqn
-        fname = dirname + '/'+f
-        # if it is a file, not a directory try to process it
-        if os.path.isfile(fname):
-            (base,ext) = os.path.splitext(fname)
-            # if the file is a tiff
-            if ext == '.tif':
-                # and not part a mulit part file
-                multi_f = re.findall('file\d{3}',f)
-                if len(multi_f) ==0:
-                    fname = os.path.realpath(fname)
-                    if not check_existance(conn,fname):
-                        print 'to add: ' + fname
-    
-            
 def check_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
     os.path.walk(path,visit2,conn)
@@ -305,10 +280,11 @@ def check_loop(path,conn):
             
 def add_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
-    os.path.walk(path,visit,conn)
+    os.path.walk(path,_visit,(process_fname,conn))
 
             
 def dry_loop(path,conn):
     """Path is the top level directory to look in, uses walk """
-    os.path.walk(path,visit_dry,conn)
+    os.path.walk(path,_visit,(process_fname_dry,conn))
+    
     
