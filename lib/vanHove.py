@@ -29,7 +29,7 @@ def read_vanHove(comp_key,conn):
     '''Takes in a comp_key to a van Hove computation and returns a
     sensible data structure'''
 
-    (fin,) = conn.execute("select fout from comps where comp_key = ?",(comp_key,)).fetchone()
+    (fin,) = conn.execute("select fout from vanHove where comp_key = ?",(comp_key,)).fetchone()
 
     Fin = h5py.File(fin,'r')
 
@@ -49,7 +49,7 @@ def plot_vanHove(comp_lst,time_step,conn):
   
     
     for c in comp_lst:
-        (fin,) = conn.execute("select fout from comps where comp_key = ?",c).fetchone()
+        (fin,) = conn.execute("select fout from vanHove where comp_key = ?",c).fetchone()
         Fin = h5py.File(fin,'r')
         g = Fin[fd('vanHove',c[0])]
         
@@ -313,6 +313,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     tmps = [d[2] for d in data]
     cm = plt.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
+    
     extream = [(np.min(d[1]), np.max(d[1])) for d in data]
     print extream
     y_lim = [np.min([d[0] for d in extream]), np.max([d[1] for d in extream])]
@@ -365,7 +366,7 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
     cm = plt.color_mapper(np.min(tmps),np.max(tmps))
-    data.sort(key=lambda x: -x[2])
+    data.sort(key=lambda x: x[2])
     if title is None:
         title = 'van Hove'
         cm = plt.color_mapper(np.min(tmps),np.max(tmps))
