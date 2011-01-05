@@ -14,7 +14,7 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
-
+from __future__ import division
 
 import sqlite3
 import h5py
@@ -170,7 +170,7 @@ def get_gofr2D(comp_num,conn):
 
     dset_names = ['bin_count', 'bin_edges']
     
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    res = conn.execute("select fout from gofr where comp_key = ?",(comp_num,)).fetchall()
     if not len(res) == 1:
         print len(res)
         raise util.dbase_error("error looking up computation")
@@ -410,17 +410,21 @@ def tmp_series_fit_plots(comp_list,conn):
     """
 
     res = [conn.execute("select comp_key,fout\
-    from comps where comps.comp_key = ?",c).fetchone()
+    from gofr where comp_key = ?",c).fetchone()
            for c in comp_list]
 
-    res.sort(key=lambda x:x[1])
+
     
     temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+    zip_lst = zip(temps,res)
+    zip_lst.sort(key=lambda x:x[0])
+    temps,res = zip(*zip_lst)
+    
     print temps
 
     gofrs = [get_gofr2D(r[0],conn) for r in res]
-    fits = [fit_gofr2(g,2.1,fitting.fun_decay_exp_inv) for g in gofrs]
-    
+    fits = [fit_gofr3(g,2.1,fitting.fun_decay_exp_inv_gen) for g in gofrs]
+    fits,r0s = zip(*fits)
     
     istatus = plots.non_i_plot_start()
 
@@ -433,8 +437,10 @@ def tmp_series_fit_plots(comp_list,conn):
     fig_xi.plot(temps,[(np.pi*2)/p.beta[1] for p in fits ],
                     marker='x',label=r'$K$')
     fig_xi.plot(temps,[p.beta[2] for p in fits ],
-                    marker='x',label=r'$C$')
-
+                    marker='x',label=r'$C [NONE]$')
+    fig_xi.plot(temps,r0s,
+                    marker='x',label=r'$r_0$')
+    
     
     fig_err = plots.Figure('T [C]','errors [diff units]','fitting error')
     fig_err.plot(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
@@ -458,15 +464,13 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     dset_names = ['bin_count', 'bin_edges']
 
     
-    res = [conn.execute("select comps.comp_key,comps.fout,dsets.temp,comps.fin \
-    from comps,dsets where comps.comp_key = ? and dsets.key = comps.dset_key",c).fetchone()
+    res = [conn.execute("select comp_key,fout,fin,dset_key from gofr where comp_key = ? ",c).fetchone()
            for c in comp_list]
 
-    res.sort(key=lambda x:x[2])
+    #res.sort(key=lambda x:x[2])
 
     
-    (sname,) = conn.execute("select sname from dsets where key in (select dset_key from comps where\
-    comp_key = ?)",(res[0][0],)).fetchone()
+    (sname,) = conn.execute("select sname from dsets where dset_key = ?",(res[0][3],)).fetchone()
 
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
@@ -508,7 +512,7 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
         g = F[gtype + "_%(#)07d"%{"#":r[0]}]
         
         
-        leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]]))
+        leg_hands.append(ax.plot(g[dset_names[1]][:]*r_scale,g[dset_names[0]][:]-1))
         leg_strs.append(str(np.round(temperature,2)))
         g1 = np.max(g[dset_names[0]])
         
@@ -535,13 +539,19 @@ def make_gofr_tmp_series(comp_list,conn,fnameg=None,fnamegn=None,gtype='gofr',da
     fig.legend(leg_hands,leg_strs,loc=0)
     ax.set_title(sname)
     ax.set_xlabel(r'r [$\mu m$]')
-    ax.set_ylabel(r'G(r)')
+    ax.set_ylabel(r'$G(r)-1$')
+    
     
     gn_ax.plot(gn_t,np.array(gn_g)-1,'x-')
+    gn_ylim = gn_ax.get_ylim()
+    gn_ylim[0] = 0
+    gn_ax.set_ylim(gn_ylim)
+        
+    print 
     gn_ax.grid(True)
     gn_ax.set_title(sname + r' $g_1(T)$')
     gn_ax.set_xlabel('T')
-    gn_ax.set_ylabel('$g_1$')
+    gn_ax.set_ylabel('$g_1-1$')
     if g1_fig is not None:
         plts.draw()
 
@@ -909,7 +919,7 @@ def _trim_gofr(gofr,r0):
 
 
 
-    return gofr_trim
+    return gofr_trim,r0
 
 def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     """
@@ -923,10 +933,14 @@ def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     sum of the residual squared
     """
     # trim the g(r) data
-    gofr = _trim_gofr(gofr,r0)
+    (gofr,r0) = _trim_gofr(gofr,r0)
     
     return fitting.fit_curve(gofr.x,gofr.y,p0,func)
- 
+
+def fit_gofr3(gofr,r0,gen_func,p0=(1,7,2,0,1)):
+    (gofr,r0) = _trim_gofr(gofr,r0)
+
+    return fitting.fit_curve(gofr.x,gofr.y,p0,gen_func(r0)),r0
 # kill?
 
 def gn_type_plots(sname,conn):
@@ -995,11 +1009,27 @@ def fix_temperature(comp_key,conn):
     '''Fixes the temperature meta data (for exmaple, if you forget to
     set it in the Iden* files)'''
 
-    (t,) = conn.execute("select temp from dsets " +
-                            "where key in (select dset_key from comps where comp_key = ? )",
-                            (comp_key,)).fetchone()
-    (fname,) = conn.execute("select fout from comps where comp_key = ?",(comp_key,)).fetchone()
-    F = h5py.File(fname,'r+')
+    (iden_key,g_fname) = conn.execute("select iden_key,fout from gofr where comp_key = ?",
+                                      (comp_key,)).fetchone()
+    (i_fname,) = conn.execute("select fout from iden where comp_key = ?",(iden_key,)).fetchone()
+
+    F_iden = h5py.File(i_fname,'r')
+    temp_sum = 0
+    frame_count = 0
+    for fr in F_iden:
+        if fr[0:5] == 'frame':
+            temp_sum += F_iden[fr].attrs['temperature']
+            frame_count += 1
+
+
+
+
+    F_iden.close()
+    del F_iden
+
+    t = temp_sum/frame_count;
+    print t
+    F = h5py.File(g_fname,'r+')
     grp = F["gofr_%(#)07d"%{"#":comp_key}]
     if 'temperature' in  grp.attrs:
         del grp.attrs['temperature']

@@ -31,33 +31,31 @@ def fun_flipper(fun):
 # functional forms#
 ###################
 
-def fun_decay_exp_inv(p,r):
-    """Returns C/r exp(- r/a) cos(K(r)+phi_0) + m r + b
+# for g(r)
+def fun_decay_exp_inv_gen(r0):
+    """Returns C/r exp(- (r-r0)/a) cos(K(r)+phi_0) + m r + b
     evaluated at r.  p = (a,K,C,phi_0,b)"""
-    return (p[2] / r) * np.exp(-r/p[0]  ) * np.cos(p[1]*r + p[3])+ p[4]
+    def fit_fun(p,r):
+        return (p[2]*r0 / r) * np.exp(-(r-r0)/p[0]  ) * np.cos(p[1]*r + p[3])+ p[4]
+    return fit_fun
 
-def fun_decay_exp_inv_dr(p,r):
-    """ d(C/r exp(- r/a) cos(K(r)+phi_0) + m r + b)/dr
-    evaluated at r.  p = (a,K,C,phi_0,b)"""
-    return (np.exp(-(r/p[0]))* (-p[2]* (p[0] + r)* np.cos(p[3] + p[1]* r) - p[0] *p[2]* p[1]* r* np.sin(p[3] + p[1]* r)))/( p[0]* r**2)
-
-
-def fun_decay_exp(p,r):
+def fun_decay_exp_gen(r0):
     """Returns C exp(- r/a) cos(K(r)+phi_0)
     evaluated at r.  p = (a,K,C,phi_0)"""
-    return (p[2] ) * np.exp(-r/p[0]  ) * np.cos(p[1]*r + p[3]) + (r)*p[4] + p[5]
-
+    def fit_fun(p,r):
+        return (p[2] ) * np.exp(-(r-r0)/p[0]  ) * np.cos(p[1]*r + p[3]) + (r)*p[4] + p[5]
+    return fit_fun
 
 def fun_decay_inv(p,r):
     """Returns C/r cos(K(r)+phi_0)
     evaluated at r.  p = (K,C,phi_0)"""
-    return (p[1] / r) * np.cos(p[0]*r + p[2])
+    return (p[1]*r0 / r) * np.cos(p[0]*r + p[2])
 
+# for van Hove
 
 def fun_lorentzian(p,r):
     """Returns C/((r/a)^2 +1) evaluated at r, p = (a,C)"""
     return p[1] / ((r/p[0])**2 + 1)
-
 
 def fun_lorentzian_p_gauss(p,r):
     """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,C2)"""
@@ -66,7 +64,6 @@ def fun_lorentzian_p_gauss(p,r):
 def fun_lorentzian_t_gauss(p,r):
     """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,C2)"""
     return p[2] / ((r/p[0])**2 + 1) * np.exp(-((r/p[1])**2)/2)
-
 
 def fun_gauss(p,r):
     """Returns C/((r/a)^2 +1) + C_2 exp(-(r/a_2)^2) evaluated at r, p = (a,C,a2,C2)"""
