@@ -5,8 +5,8 @@ import lib.msd as lm
 conn = gen.open_conn("/home/tcaswell/colloids/proc_db.db")
 ce = conn.execute
 
-steps = [5,15,25]
-styles = ['x','^','o']
+steps = [5,10,15,20,25]
+styles = ['x','^','o','<','>']
 
 msds = [ce("select comp_key from msd where date = '2010-12-08' and msd_steps = ?",(c,)).fetchall()
         for c in steps]
