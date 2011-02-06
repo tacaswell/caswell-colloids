@@ -175,8 +175,8 @@ def compute_alpha(comp,conn,wind ,min_count ):
     Returns a list of tuples(wait_time,alpha2) and the temperature
     """
     
-    (fin,) = conn.execute("select fout from comps where comp_key = ?",comp).fetchone()
-    (max_step,) = conn.execute("select max_step from vanHove_prams where comp_key = ?",comp).fetchone()
+    (fin,max_step) = conn.execute("select fout,max_step from vanHove where comp_key = ?",comp).fetchone()
+    
     Fin = h5py.File(fin,'r')
     g = Fin[fd('vanHove',comp[0])]
 
@@ -371,16 +371,30 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
         title = 'van Hove'
         cm = plt.color_mapper(np.min(tmps),np.max(tmps))
 
-    fig = plt.Figure('T [C]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    fig = plt.Figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
     for (edges,count,temp,dtime,x_lim) in data:
         fig.plot(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
         
     
 
+def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
+    comp_lst = conn.execute("select comp_key from vanHove where dset_key = ? and min_track_length = 45",(dset_key,)).fetchall()
+    print comp_lst
+    data = [extract_vanHove(c,conn,time_step,-1,wind,norm=norm) for c in comp_lst]
+    if title is None:
+        title = 'van Hove %(#)0.1f C'%{'#':data[0][2]}
+
+        
+
+    fig = plt.Figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    for (a,b) in zip(data,comp_lst):
+        (edges,count,temp,dtime,x_lim,comp_key) = a+b
+        fig.plot(edges,count/(np.max(count) ),label=str(comp_key))
+    
     
 
 
-def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True):
+def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = None):
     '''the half-width half max of the van Hove distrobutions vs
     temperature at a fixed time step'''
     
@@ -400,10 +414,11 @@ def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True):
 
     print T
     print hwhm
-    fig = plt.Figure('T [C]','hwhm [px]',title)
+    if fig is None:
+        fig = plt.Figure('T [C]','hwhm [px]',title)
     fig.plot(T,hwhm,'x-',label = 'hwhm')
         
-        
+    return fig
 
 def figure_out_grid(tot):
     """Computes the 'ideal' grid dimensions for the total number of
