@@ -39,6 +39,14 @@ def fun_decay_exp_inv_gen(r0):
         return (p[2]*r0 / r) * np.exp(-(r-r0)/p[0]  ) * np.cos(p[1]*r + p[3])+ p[4]
     return fit_fun
 
+def fun_decay_exp_inv_dr_gen(r0):
+    """ d(C/r exp(- r/a) cos(K(r)+phi_0) + m r + b)/dr
+    evaluated at r.  p = (a,K,C,phi_0,b)"""
+    def ret_fun(p,r):
+        return (np.exp(-((r-r0)/p[0]))* (-p[2]*r0* (p[0] + r)* np.cos(p[3] + p[1]* r) - p[0] *p[2]+r0* p[1]* r* np.sin(p[3] + p[1]* r)))/( p[0]* r**2)
+
+
+
 def fun_decay_exp_gen(r0):
     """Returns C exp(- r/a) cos(K(r)+phi_0)
     evaluated at r.  p = (a,K,C,phi_0)"""
