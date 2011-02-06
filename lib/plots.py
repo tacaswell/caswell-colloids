@@ -154,5 +154,5 @@ def save_figure(fname,fig):
         os.makedirs(spath,0755)
     if os.path.isfile(spath+fname+'.png') or os.path.isfile(spath+fname+'.eps'):
         raise Exception("file name exists: " + spath + fname)
-    fig.savefig(spath + fname+'.eps',format='eps')
+    fig.savefig(spath + fname+'.eps',format='eps',dpi=400)
     fig.savefig(spath + fname+'.png',format='png')
