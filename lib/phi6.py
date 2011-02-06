@@ -1,3 +1,12 @@
+import h5py
+import numpy as np
+
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
+
+from general import ff,fd
+
 # change to take 
 def _plot_file_frame_phi6(key,conn,fr_num,fnameg=None):
     '''
@@ -14,10 +23,13 @@ def _plot_file_frame_phi6(key,conn,fr_num,fnameg=None):
     fc = f.attrs['number-of-planes']
     if fr_num <fc:
         fr_num = fc-1
+        
+
+    x = f[ff(fr_num)][fd('x',iden_key)][:]
+    x = f[ff(fr_num)][fd('y',iden_key)][:]
+    phi = f[ff(fr_num)][fd('scaler_order_parameter',iden_key)]
+
     
-    x = f["/frame%(#)06d"%{"#":fr_num}+"/x_%(#)07d"%{"#":comp_number}]
-    y = f["/frame%(#)06d"%{"#":fr_num}+"/y_%(#)07d"%{"#":comp_number}]
-    phi = f["/frame%(#)06d"%{"#":fr_num}+"/scaler_order_parameter_%(#)07d"%{"#":p_comp}]
     phir = np.zeros(phi.shape[0])
     phii = np.zeros(phi.shape[0])
 
@@ -79,9 +91,9 @@ def _plot_file_frame_nsize(key,conn,fr_num,fnameg=None):
     
     f = h5py.File(fname,'r')
     
-    x = f["/frame%(#)06d"%{"#":fr_num}+"/x_%(#)07d"%{"#":comp_number}]
-    y = f["/frame%(#)06d"%{"#":fr_num}+"/y_%(#)07d"%{"#":comp_number}]
-    ns = f["/frame%(#)06d"%{"#":fr_num}+"/neighborhood_size_%(#)07d"%{"#":p_comp}]
+    x = f[ff(fr_num)][fd('x',iden_key)]
+    x = f[ff(fr_num)][fd('y',iden_key)]
+    ns = f[ff(fr_num)][fd('neighborhood_size',iden_key)]
 
     print np.mean(ns)
     
@@ -123,18 +135,72 @@ def _plot_file_frame_nsize(key,conn,fr_num,fnameg=None):
         plt.close(fig)
 
 
-def plot_file_frame_pos(key,conn, fr_num):
-    (fname,p_comp) = conn.execute("select fout,comp_key from comps where function = 'phi6' and dset_key = ? and date = '2010-04-19';",(key,)).fetchone()
-    (comp_number,) = conn.execute("select comp_key from comps where function = 'Iden' and fout = ?",(fname,)).fetchone()
-
-    (sname,stype,temp) = conn.execute("select sname,dtype,temp from dsets where key = ?",(key,)).fetchone()
-
+def _extract_phi6_values(phi6_key,conn,fr_num):
+    '''Takes in a phi6 computation number, assumed to be a length one tuple
+    as comes out of the sql function the sql connection, and a frame number'''
     
+    (fname,iden_key,dset_key) = conn.execute("select fout,iden_key,dset_key from phi6" +
+                                             " where  comp_key = ?",
+                                             phi6_key).fetchone()
+    
+
     f = h5py.File(fname,'r')
 
-    x = f["/frame%(#)06d"%{"#":fr_num}+"/x_%(#)07d"%{"#":comp_number}]
-    y = f["/frame%(#)06d"%{"#":fr_num}+"/y_%(#)07d"%{"#":comp_number}]
-    ns = f["/frame%(#)06d"%{"#":fr_num}+"/neighborhood_size_%(#)07d"%{"#":p_comp}][:]
+    ns = f[ff(fr_num)][fd('neighborhood_size',phi6_key[0])][:]
+    print ns.shape
+    x = f[ff(fr_num)][fd('x',iden_key)][:]
+    print x.shape
+    x = f[ff(fr_num)][fd('x',iden_key)][ns>0]
+    y = f[ff(fr_num)][fd('y',iden_key)][ns>0]
+    
+    phi = f[ff(fr_num)][fd('scaler_order_parameter',phi6_key[0])][ns>0]
+
+    f.close()
+    del f
+
+    return x,y,phi,ns
+
+
+
+def testing(phi6_key,conn,fr_num):
+    '''Takes in a phi6 computation number, assumed to be a length one tuple
+    as comes out of the sql function the sql connection, and a frame number'''
+    
+    (fname,iden_key,dset_key) = conn.execute("select fout,iden_key,dset_key from phi6" +
+                                             " where  comp_key = ?",
+                                             phi6_key).fetchone()
+    
+
+    f = h5py.File(fname,'r')
+    ns = f[ff(fr_num)][fd('neighborhood_size',phi6_key[0])][:]
+    x = f[ff(fr_num)][fd('x',iden_key)][:]
+    
+    f.close()
+    del f
+
+    return (x.shape,ns.shape)
+def mean_phi(phi6_key,conn,fr_num):
+    ''' '''
+    print phi6_key
+    x,y,phi,ns = _extract_phi6_values(phi6_key,conn,fr_num)
+    (pr,pi) = zip(*phi)
+
+    bar_p = np.array([np.sqrt(p[0]**2 + p[1]**2) for p in phi])
+
+    
+    
+    return np.mean(bar_p), (np.mean(pr),np.mean(pi))
+    
+def plot_file_frame_pos(phi6_key,conn, fr_num):
+    
+    (sname,stype) = conn.execute("select sname,dtype from dsets where dset_key in (select dset_key from phi6 where comp_key = ?)",
+                                      phi6_key).fetchone()
+    
+
+    x,y,phi,ns = _extract_phi6_values(phi6_key,conn,fr_num)
+    
+    (pr,pi) = zip(*phi)
+    
     istatus = plt.isinteractive();
     print istatus
     if istatus:plt.ioff()
@@ -143,9 +209,15 @@ def plot_file_frame_pos(key,conn, fr_num):
     fig = plt.figure()
     ax = fig.add_axes([.1,.1,.8,.8])
     ax.set_aspect('equal')
-    sc = ax.scatter(x,y,c=ns)
-    plt.colorbar(sc)
-        
+    bar_p = np.array([np.sqrt(p[0]**2 + p[1]**2) for p in phi])
+    
+    print np.max(bar_p)
+    print np.min(bar_p)
+    print np.mean(bar_p)
+    #sc = ax.scatter(x,y,c=bar_p)
+    ax.quiver(x,y,pr,pi)
+    #plt.colorbar(sc)
+    
     if istatus:
         print "displaying figure"
         plt.ion()
