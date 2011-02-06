@@ -153,3 +153,31 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         del F
 
 
+
+def _extract_tracks(F,start_plane,start_indx,iden_key,track_key):
+
+    frame_num = start_plane
+
+    g_x = F[ff(frame_num)][fd('x',iden_key)]
+    g_y = F[ff(frame_num)][fd('y',iden_key)]
+    g_nxt = F[ff(frame_num)][fd('next_part',track_key)]
+
+    trks = [[(g_x[s],g_y[s],g_nxt[s])] for s in start_indx]
+
+    frame_num += 1
+
+    while ff(frame_num) in F.keys():
+        g_x = F[ff(frame_num)][fd('x',iden_key)]
+        g_y = F[ff(frame_num)][fd('y',iden_key)]
+        g_nxt = F[ff(frame_num)][fd('next_part',track_key)]
+
+        for t in trks:
+            s = t[-1][-1]
+            if s != -1:
+                t.append((g_x[s],g_y[s],g_nxt[s]))
+        frame_num += 1
+        
+    return trks
+
+
+    
