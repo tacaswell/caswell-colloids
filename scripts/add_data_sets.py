@@ -134,8 +134,10 @@ def ask_sname(fname):
 def guess_date(fname):
     """Tries to guess the date from the name"""
     fsplit = fname.split('/')
+    print fname
     for f in fsplit:
-        if re.match('\d{4}-\d{2}-\d{2}',f):
+        if len(f) == 10 and re.match('\d{4}-\d{2}-\d{2}',f):
+            print f
             return datetime.strptime(f,'%Y-%m-%d').date().isoformat()
         if re.match('\d{8}',f):
             return datetime.strptime(f,'%Y%m%d').date().isoformat()
@@ -222,9 +224,8 @@ def process_fname_dry(conn,fname,ftype):
         return
     md = extract_md(fname)
     print (fname,) + md
-
-
     
+
 def _visit(args,dirname,names):
     """Function for walk """
 
@@ -235,7 +236,7 @@ def _visit(args,dirname,names):
         return
     # if there are less than 100 names, assume we are in a directory
     # of folders and stacks rather than a folder with a series in it
-    if len(names)<100:
+    if len(names)<50:
         # loop over names
         for f in names:
             # assemble fqn
