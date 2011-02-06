@@ -18,9 +18,14 @@ from __future__ import division
 
 import h5py
 
-import matplotlib.pyplot as plt
+import matplotlib
+
+import plots as plt
+
 
 import plots
+import numpy as np
+from general import fd
 Fig = plots.Figure
 color_mapper = plots.color_mapper
 
@@ -61,33 +66,44 @@ def make_disp_sq_plots(comp_key,conn):
 
     plots.non_i_plot_stop(istatus)
 
+def track_len_hists(comp_lst,conn):
+    """makes histograms of the track lengths for the tracking computations in comp_lst """
+
+    res = [_extract_track_lengths(c,conn) for c in comp_lst]
+    hist_res = [np.histogram(r[0],bins=np.max(r[0])) + (r[1],) for r in res]
+
+    tmps = [d[1] for d in res]
+    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
     
-def make_trk_len_plots(comp_key,conn,fig,scale=1):
-    """ takes in an comp_key for a track_stat computation and plot the
-    track length histogram"""
+    
+    fig = Fig('length','counts','Track length histogram',func = matplotlib.axes.Axes.loglog)
+    for hr in hist_res:
+        temp = hr[2]
+        fig.plot(hr[1],hr[0],label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+
+def _extract_track_lengths(track_key,conn):
+    """Extracts the array of track lengths
+    
+    Assumes track_key is a length 1 tuple
+
+    Assumes that the tracking and iden data are in the same file
+    """
+    print track_key
+    
+    (fname,iden_key,track_key) = conn.execute("select fout,iden_key,comp_key from tracking where comp_key = ?",
+                                    track_key).fetchone()
+    
+    F = h5py.File(fname,'r')
+    len_vec = F[fd('tracking',track_key)]['length'][:]
+    
+    temp = 0
+    fr_count = 0
+    for g in F.keys():
+        if g[0:5] == 'frame':
+            temp += F[g].attrs['temperature']
+            fr_count += 1
 
     
-    (fin,) = conn.execute("select fout from comps where function = 'track_stats' and comp_key = ?",
-                          (comp_key,)).fetchone()
-
-    
-    (iden_fun,dset_key ) = conn.execute("select function,dset_key from comps where " +
-                                "comp_key in " +
-                                "(select iden_key from trk_stat_prams where "+
-                                "comp_key = ?)",(comp_key,)).fetchone()
-
-    
-
-    F = h5py.File(fin,'r')
-    
-    g = F[_fd('track_length',comp_key)]
-    
-
-    
-
-    val = g['bin_value'][:]
-    fig.plot(g['bin_edges'][:]*scale,val,label=iden_fun)
-    print 'over: ' + str(g.attrs['over_count'])
     F.close()
-
-
+    del F
+    return len_vec, temp/fr_count
