@@ -18,6 +18,7 @@ from __future__ import division
 
 # needed for the wrapper classes
 import PIL
+import PIL.Image
 import numpy as np
 
 # needed for plotting
@@ -63,6 +64,7 @@ class Series_wrapper:
             print self.base_name%j
             im = PIL.Image.open(self.base_name%j)
         except IOError:
+            print "didn't find th efile"
             return None
         img_sz = im.size[::-1]
         return np.reshape(im.getdata(),img_sz)
