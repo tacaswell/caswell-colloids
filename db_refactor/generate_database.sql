@@ -178,3 +178,19 @@ CREATE TABLE vanHove (
        FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
        FOREIGN KEY(track_key) REFERENCES tracking(comp_key)
 );
+	
+CREATE TABLE phi6 (
+       comp_key INTEGER PRIMARY KEY,
+       iden_key INTEGER NOT NULL,
+       dset_key INTEGER NOT NULL,
+       neighbor_range FLOAT NOT NULL,
+       shift_cut FLOAT NOT NULL,
+       rg_cut FLOAT NOT NULL,
+       e_cut FLOAT NOT NULL,
+       fin TEXT NOT NULL,
+       fout TEXT NOT NULL,
+       date TEXT NOT NULL DEFAULT CURRENT_DATE,
+       FOREIGN KEY(dset_key) REFERENCES dsets(dset_key),
+       FOREIGN KEY(comp_key) REFERENCES comps(comp_key),
+       FOREIGN KEY(iden_key) REFERENCES iden(comp_key)       
+);
