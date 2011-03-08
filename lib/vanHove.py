@@ -123,6 +123,30 @@ def extract_vanHove(c,conn,time_step,count_cut,wind=1,norm=False):
 
     return edges,count,temp,dtime,x_lim
 
+def extract_vanHove_all(c,conn,wind=1):
+    """
+    Alternate extraction function that returns all of the 
+    
+    """
+
+    (fin,min_track_length) = conn.execute("select fout,min_track_length from vanHove where comp_key = ?",c).fetchone()
+    Fin = h5py.File(fin,'r')
+    g = Fin[fd('vanHove',c[0])]
+
+    temp = g.attrs['temperature']
+    dtime = g.attrs['dtime']
+    
+    vanHove = [_extract_vanHove(g,step,0,wind) for step in range(1,min_track_length)]
+    
+    del g
+    Fin.close()
+    del Fin
+    
+    return vanHove,temp,dtime
+
+
+    
+
 def _extract_vanHove(g,j,count_cut,wind):
     """
     Does the actual work of extracting the proper data set from an open
@@ -395,7 +419,7 @@ def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
 
 
 def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = None):
-    '''the half-width half max of the van Hove distrobutions vs
+    '''the half-width half max of the van Hove distributions vs
     temperature at a fixed time step'''
     
 
@@ -419,6 +443,48 @@ def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = Non
     fig.plot(T,hwhm,'x-',label = 'hwhm')
         
     return fig
+
+
+def plot_hwhm_v_tau(comp,conn,steps,ax,wind =1,*args,**kwargs):
+    '''the half-width half max of the van Hove distributions vs tau at
+    a fixed temperature'''
+    
+
+        
+        
+    (vanHove,temp,dtime) = extract_vanHove_all(comp,conn,wind)
+    
+    
+    if not 'label' in kwargs:
+        kwargs['label'] = '%.2f'%temp
+    if not 'color' in kwargs:
+        cm = plt.color_mapper(27,32)
+        kwargs['color'] = cm.get_color(temp)
+    
+    hwhm = [_vh_hwhm(v[0],v[1]) for v in vanHove]
+      
+        
+        
+    ax.plot(dtime*(np.arange(0,len(hwhm))+1),np.array(hwhm),*args,**kwargs)
+        
+    tmp_fig = mplt.gcf()
+    mplt.figure(ax.get_figure().number)
+    mplt.draw()
+    mplt.figure(tmp_fig.number)
+
+def set_up_hwhm_tau_axis():
+    """
+    Sets up the axis
+    """
+    fig = mplt.figure()
+    ax = mplt.gca()
+    ax.set_xlabel(r'$\tau$ [ms]')
+    ax.set_ylabel('hwhm [pix]')
+    ax.hold(True)
+    ax.grid(True)
+    ax.set_yscale('log')
+    ax.set_xscale('log')
+    return ax
 
 def figure_out_grid(tot):
     """Computes the 'ideal' grid dimensions for the total number of
