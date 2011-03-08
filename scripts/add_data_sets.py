@@ -210,7 +210,8 @@ def process_fname(conn,fname,ftype):
     """Take in a connection and a database, parse the fname and enter into database"""
     fname = os.path.realpath(fname)
     if check_existance(conn,fname):
-        raise Exception("already exists in database")
+        print 'already in data set'
+        return
     md = extract_md(fname)
     md = (fname,) + md + (ftype,)
     conn.execute('insert into dsets (fname,dtype,sname,ddate,ftype) values (?,?,?,?,?)',md)
