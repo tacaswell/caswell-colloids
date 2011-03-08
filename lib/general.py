@@ -220,6 +220,23 @@ def get_exp_time(comp_num,conn):
     
     return exp_time
     
+def get_acq_time(dset_key,conn):
+    """
+    Given a dset key, gets the local acquisition time of the first plane.  Needs to have
+    had iden run on the data set to work
+    """
+
+    (fname,iden_key) = conn.execute("select fout,comp_key from iden where dset_key = ?"
+                                    ,(dset_key,)).fetchone()
+    F = h5py.File(fname,'r')
+
+    acq_time = F['/frame000000'].attrs['acquisition-time-local']
+    
+
+    F.close()
+    del F
+
+    return acq_time
 
 def ff(n):
     """Formats frame names """
