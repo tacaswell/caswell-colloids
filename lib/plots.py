@@ -1,4 +1,4 @@
-#Copyright 2010 Thomas A Caswell
+#Copyright 2010,2011 Thomas A Caswell
 #tcaswell@uchicago.edu
 #http://jfi.uchicago.edu/~tcaswell
 #
@@ -154,5 +154,9 @@ def save_figure(fname,fig):
         os.makedirs(spath,0755)
     if os.path.isfile(spath+fname+'.png') or os.path.isfile(spath+fname+'.eps'):
         raise Exception("file name exists: " + spath + fname)
+
+    
     fig.savefig(spath + fname+'.eps',format='eps',dpi=400)
+    print '[[' + spath + fname+'.eps]]'
     fig.savefig(spath + fname+'.png',format='png')
+    print '[[' + spath + fname+'.png]]'
