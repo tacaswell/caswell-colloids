@@ -25,8 +25,9 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-
-
+import os
+import os.path
+import h5py
 
 class Stack_wrapper:
     def __init__(self,fname):
@@ -50,10 +51,14 @@ class Stack_wrapper:
         
 
 class Series_wrapper:
-    def __init__(self,base_name,padding,ext):
+    def __init__(self,base_name,ext,padding = None):
         '''base name includes the full path up to the numbering
         assumes that the numbering is left padded with 0 to padding places
         the extension does not include the .'''
+        if padding is None:
+            im_guess = len(os.listdir(os.path.dirname(base_name)))
+            padding = int(np.log10(im_guess))+1
+            
         self.base_name = base_name + '%0' + str(padding) + 'd.' + ext
         
 
@@ -70,9 +75,40 @@ class Series_wrapper:
         return np.reshape(im.getdata(),img_sz)
 
 
+def plot_centers_simple(iden_key,conn,frame):
+    ''' Function that does all of the look up for you '''
+    
+    (iden_fname,dset_key) = conn.execute("select fout,dset_key from iden where comp_key = ?",
+                                         (iden_key,)).fetchone()
+    
+    (sname,img_fname,ftype) = conn.execute("select sname,fname,ftype from dsets where dset_key =?",
+                                           (dset_key,)).fetchone()
+    
 
-        
-def plot_centers(img,x,y):
+    if ftype == 1:
+        im_wrap = Stack_wrapper(img_fname)
+        pass
+    elif ftype ==2:
+        im_wrap = Series_wrapper(img_fname,'tif')
+        pass
+    F = h5py.File(iden_fname,'r')
+
+    plot_centers(F,im_wrap,frame,iden_key)
+
+    F.close()
+    del F
+
+
+def plot_centers(F,s_wrapper,frame,comp_key):
+    '''Function that automates some of the extraction steps '''
+
+    x,y = extract_centers(F,frame,comp_key)
+    img = s_wrapper.get_frame(frame)
+
+    _plot_centers(img,x,y)
+
+    
+def _plot_centers(img,x,y):
     '''img_wrapper is assumed to be any object that implements
     get_frame(j).
 
@@ -118,7 +154,7 @@ def plot_centers(img,x,y):
     pass
 
 
-def extract_centers(F,frame,comp_num):
+def extract_centers(F,frame,comp_num,cut_pram = None):
     """F is an open hdf object that is under my file scheme (don't ask
     unless you really want to know)"""
 
@@ -131,7 +167,31 @@ def extract_centers(F,frame,comp_num):
         """ formats dset names"""
         return str_ + "_%(#)07d"%{"#":n}
 
-    x = F[ff(frame)][fd('x',comp_num)]
-    y = F[ff(frame)][fd('y',comp_num)]
+    x = F[ff(frame)][fd('x',comp_num)][:]
+    y = F[ff(frame)][fd('y',comp_num)][:]
 
+    if cut_pram is not None:
+        R =  F[ff(frame)][fd('R2',comp_num)][:]
+        e =  F[ff(frame)][fd('eccentricity',comp_num)][:]
+        dx =  F[ff(frame)][fd('x_shift',comp_num)][:]
+        dy =  F[ff(frame)][fd('y_shift',comp_num)][:]
+        x,y = filter_centers(x,y,R,e,dx,dy,cut_pram)
     return x,y
+
+def filter_centers(x,y,R,e,dx,dy,cut_pram):
+    """Filters centers using the standard cut limits """
+
+    indx = np.array([True] * len(x))
+
+    if 'shift_cut' in cut_pram:
+        tmp_indx = np.sqrt((dx)**2 + (dy)**2) < cut_pram['shift_cut']
+        indx = np.logical_and(indx,tmp_indx)
+    if 'rg_cut' in cut_pram:
+        tmp_indx = R < cut_pram['rg_cut']
+        indx = np.logical_and(indx,tmp_indx)
+    if 'e_cut' in cut_pram:
+        tmp_indx = e < cut_pram['e_cut']
+        indx = np.logical_and(indx,tmp_indx)
+
+
+    return x[indx],y[indx]
