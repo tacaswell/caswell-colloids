@@ -87,9 +87,13 @@ class Temp_log:
         
     def get_temp(self,in_time):
         """returns the temperature at the time asked"""
-        
-        temp =  self.temp_collection.find(in_time.replace(microsecond=0))[1]
-        
+
+        try:
+            temp =  self.temp_collection.find(in_time.replace(microsecond=0))[1]
+        except ValueError,v:
+            temp_m1 = self.temp_collection.find(in_time.replace(microsecond=0) - timedelta(seconds=1))[1]
+            temp_p1 = self.temp_collection.find(in_time.replace(microsecond=0) + timedelta(seconds=1))[1]
+            temp = (temp_p1 + temp_m1)/2
         return temp
 
     def addDir(self,path):
@@ -116,8 +120,18 @@ def set_plane_temp(iden_key,conn,temp_log):
         acq_time = datetime.strptime('.'.join(grp.attrs['acquisition-time-local'].split('.')[:-1])
                                      ,'%Y-%m-%d %H:%M:%S')
         if 'temperature' in grp.attrs.keys():
-            raise Exception("This file already has temperatures for the planes")
-        grp.attrs['temperature'] = temp_log.get_temp(acq_time)
+            pass
+        # F.close()
+        #     del F
+        #     raise Exception("This file already has temperatures for the planes")
+        else:
+            try:
+                grp.attrs['temperature'] = temp_log.get_temp(acq_time)
+            except Exception , inst:
+                print inst.args
+                print inst
+                F.close()
+                del F
     F.close()
-
+    del F
     
