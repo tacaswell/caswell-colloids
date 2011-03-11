@@ -92,3 +92,30 @@ class hash_case:
             cur_region = self.get_region(c,buf)
             for p in cur_box:
                 fun(p,cur_region)
+
+def link_dumb(h1,h2,m_range):
+    """This function takes in a pair of hash case (which in this code
+    are single planes) and does linking"""
+
+    pairs = []
+    buf = 1
+    # loop over boxes in h1
+    centers = [(j,k)
+               for j in range(buf,int(h1.hash_dims[0]-buf))
+               for k in range(buf,int(h1.hash_dims[1]-buf))]
+    for c in centers:
+        # get list of particles in current box
+        cur_box_lst = h1.hash_table[cord_to_indx_2D(c,h1.hash_dims)]
+        # get list of particles in current region in h1
+        h2_region = h2.get_region(c,1)
+        for sp in cur_box_lst:
+            canidate_part = h2_region[np.argmin([dist(sp,p) for p in h2_region])]
+            
+            if dist(sp,canidate_part) < m_range:
+                pairs.append((sp,canidate_part))
+
+    return pairs
+
+def dist(a,b):
+    return np.sum(np.sqrt((a-b)**2))
+
