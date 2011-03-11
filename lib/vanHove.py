@@ -182,6 +182,7 @@ def _alpha2(edges,count):
     """
     # normalize count
     tmp_count = count/np.sum(count)
+    
     return (
         np.sum((edges**4) *tmp_count )/
             (
@@ -580,3 +581,17 @@ def _vh_hwhm(edges,count):
     c_max = np.max(count)
     indx = np.nonzero(count >= (c_max/2))[0]
     return (edges[indx[-1]] - edges[indx[0]])/2
+
+def remove_vanHove_computation(comp_key,conn):
+    '''Completely removes the computation from the results and the database'''
+    (fin,) = conn.execute("select fout from vanHove where comp_key = ?",comp_key).fetchone()
+    print fin
+    conn.execute("delete from vanHove where comp_key = ?",comp_key)
+    conn.execute("delete from comps where comp_key = ?",comp_key)
+    conn.commit()
+    
+    Fin = h5py.File(fin,'r+')
+    del Fin[fd('vanHove',comp_key[0])]
+    Fin.close()
+    del Fin
+    
