@@ -415,3 +415,6 @@ def avg_dtime(iden_key,conn):
 
 
     
+def np_to_org(a):
+    for b in a:
+        print "|" + '|'.join(['%.3g'%c for c in b]) +'|'
