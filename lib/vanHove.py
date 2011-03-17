@@ -109,9 +109,12 @@ def extract_vanHove(c,conn,time_step,count_cut,wind=1,norm=False):
 
     temp = g.attrs['temperature']
     dtime = g.attrs['dtime']
+    max_step = g.attrs['max_step']
     j = int(time_step/dtime)
     print j
-
+    if j > max_step or j <= 0:
+        return np.array([]),np.array([]),0,0,[]
+    
     (edges,count,x_lim) = _extract_vanHove(g,j,count_cut,wind)
     
     del g
@@ -393,14 +396,25 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
     cm = plt.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     if title is None:
-        title = 'van Hove'
+        title = r'van Hove $\tau$: %g s'%(time_step/1000)
         cm = plt.color_mapper(np.min(tmps),np.max(tmps))
 
     fig = plt.Figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
-    for (edges,count,temp,dtime,x_lim) in data:
-        fig.plot(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
-        
+ 
+    [fig.plot(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+     for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
+    mplt.gca().set_ylim(1e-5,1)
+
+def plot_vanHove(c,conn,ax,tau,*args,**kwargs):
+    '''Extracts and plots a van Hove plot on to the given axis'''
     
+    wind = 1
+    if 'wind' in kwargs:
+        wind = kwargs['wind']
+        del kwargs['wind']
+        
+    (edges,count,temp,dtime,x_lim) = extract_vanHove(c,conn,tau,1,wind,False)
+    ax.plot(edges,count/np.max(count),*args,**kwargs)
 
 def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
     comp_lst = conn.execute("select comp_key from vanHove where dset_key = ? and min_track_length = 45",(dset_key,)).fetchall()
