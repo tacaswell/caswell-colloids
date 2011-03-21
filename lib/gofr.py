@@ -639,7 +639,25 @@ def plot_residue(comp_list,conn):
     
     plots.non_i_plot_stop(istatus)
 
-def make_gofr_tmp_series(comp_list,conn,ax=None,gn_ax=None,T_correction = 0,*args,**kwargs):
+def set_up_gn_plots(sname):
+    gn_fig = plts.figure()
+    gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
+    fig = plts.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+    ax.set_title(sname)
+    ax.set_xlabel(r'r [$\mu m$]')
+    ax.set_ylabel(r'$G(r)-1$')
+
+    gn_ax.set_title(sname + r' $g_1(T)$')
+    gn_ax.set_xlabel('T')
+    gn_ax.set_ylabel('$g_1-1$')
+    
+    
+    return (ax,gn_ax)
+
+def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs):
     '''Takes in a sample name and plots all of the g(r) for it '''
     r_scale = 6.45/60
     dset_names = ['bin_count', 'bin_edges']
@@ -659,23 +677,15 @@ def make_gofr_tmp_series(comp_list,conn,ax=None,gn_ax=None,T_correction = 0,*arg
     print istatus
     if istatus:plts.ioff()
 
-    if ax is None:
-        fig = plts.figure()
-        ax = fig.add_axes([.1,.1,.8,.8])
-        ax.hold(True)
-        ax.grid(True)
-    else:
-        fig = ax.get_figure()
+    
+    fig = ax.get_figure()
     
     gn_g = []
     gn_t = []
     gn_p = []
 
-    if gn_ax is None:
-        gn_fig = plts.figure()
-        gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
-    else:
-        gn_fig = gn_ax.get_figure()
+    
+    gn_fig = gn_ax.get_figure()
         
         
     temps = [get_gofr_tmp(r[1],r[0],conn)+T_correction for r in res]
@@ -721,9 +731,6 @@ def make_gofr_tmp_series(comp_list,conn,ax=None,gn_ax=None,T_correction = 0,*arg
     print gn_t
     print gn_g
     ax.legend()
-    ax.set_title(sname)
-    ax.set_xlabel(r'r [$\mu m$]')
-    ax.set_ylabel(r'$G(r)-1$')
     
     
     gn_ax.plot(gn_t,np.array(gn_g)-1,'x-',**kwargs)
@@ -733,10 +740,10 @@ def make_gofr_tmp_series(comp_list,conn,ax=None,gn_ax=None,T_correction = 0,*arg
         
     print 
     gn_ax.grid(True)
-    gn_ax.set_title(sname + r' $g_1(T)$')
-    gn_ax.set_xlabel('T')
-    gn_ax.set_ylabel('$g_1-1$')
-    
+
+    plts.figure(fig.number)
+    plts.draw()
+    plts.figure(gn_fig.number)
     plts.draw()
         
     if istatus:
@@ -890,7 +897,7 @@ def make_gofr_by_plane_plots(comp,conn,ax=None):
     max_indx = [np.argmax(g.y[5:])+5 for g in gc]
     betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
     plane_num = range(0,len(betas))
-    #plane_num = temps
+    plane_num = temps
     ax.plot(plane_num,np.array([b.beta[2] for b in betas])-1,'x')
     ax.plot(plane_num,np.array([np.max(g.y) for g in gc])-1,'x')
     ax.set_xlabel('comp index')
@@ -906,6 +913,9 @@ def make_gofr_by_plane_plots(comp,conn,ax=None):
     ax.set_xlabel('comp index')
     ax.set_ylabel(r'$temperature')
     ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
+
+    # (fig,ax) = plots.set_up_plot()
+    # [ax.plot(g.x,g.y) for g in gc]
     
     plots.non_i_plot_stop(istatus)
 
@@ -1310,6 +1320,30 @@ def remove_gofr_computation(comp_number,conn):
     del F
     
     pass
+
+def remove_gofr_bp_computation(comp_number,conn):
+    (f_gofr,) = conn.execute("select fout from gofr_by_plane where comp_key = ?"
+                                   ,comp_number).fetchone()
+
+    # the order is important to keep the foreign constraints happy
+    # kill gofr_prams entry
+    conn.execute("delete from gofr_by_plane where comp_key = ?",comp_number)
+    # kill comps entry
+    conn.execute("delete from comps where comp_key = ?",comp_number)
+    # commit to db, commit before deleting the data as unmarked data is less irritating
+    # than non-existing data
+    conn.commit()
+    
+
+    
+    # remove group from hdf file
+    F = h5py.File(f_gofr,'r+')
+    del F["gofr_by_plane_%(#)07d"%{"#":comp_number[0]}]
+    F.close()
+    del F
+    
+    pass
+
 
 def fix_temperature(comp_key,conn):
     '''Fixes the temperature meta data (for exmaple, if you forget to
