@@ -49,7 +49,7 @@ def write_delta_T(comp,conn):
     
 def plot_msd_old(comp_key,conn,fig=None):
     if fig is None:
-        fig = plt.Figure('t[s]','msd','msd')
+        fig = plt.tac_figure('t[s]','msd','msd')
         pass
     
     (fin,dset) = conn.execute("select fout,dset_key from comps where comp_key = ?",(comp_key,)).fetchone()
@@ -76,7 +76,7 @@ def plot_msd_old(comp_key,conn,fig=None):
 
 def plot_msd(comp_key,conn,fig=None):
     if fig is None:
-        fig = plt.Figure('t[s]','msd','msd')
+        fig = plt.tac_figure('t[s]','msd','msd')
         pass
     
     (fin,) = conn.execute("select fout from msd where comp_key = ?",(comp_key,)).fetchone()
@@ -113,7 +113,7 @@ def plot_msd_series(comp_key_lst,conn,sname=None):
 
         
     
-    fig = plt.Figure('t[ms]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.plot)
+    fig = plt.tac_figure('t[ms]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.plot)
     for c in comp_key_lst:
         plot_msd(c[0],conn,fig)
 
@@ -142,10 +142,10 @@ def fit_msd(comp_key,conn,make_plot = False):
     (x,r,rn,s) = numpy.linalg.lstsq(numpy.transpose(numpy.array([t,numpy.ones(len(msd))])),msd)
 
     if(make_plot):
-        fig = plt.Figure('t [ms]','msd [px^2]','msd and fit')
-        fig.plot(t,msd,'x',label= 'msd')
+        fig = plt.tac_figure('t [ms]','msd [px^2]','msd and fit')
+        fig.draw_line(t,msd,'x',label= 'msd')
         print x[1]
-        fig.plot(t,t*x[0] + x[1],label= 'fit')
+        fig.draw_line(t,t*x[0] + x[1],label= 'fit')
 
     scale = 6.45/60                     # u[m]/[pix]
 

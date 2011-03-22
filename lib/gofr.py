@@ -16,24 +16,24 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import division
 
-import sqlite3
-import h5py
-import pov 
-import plots 
-import util 
-import numpy as np
-from util import cord_pairs
-import scipy.optimize as sopt
-import scipy.odr as sodr
-import bisect
 import itertools
-import matplotlib.pyplot as plts
-import matplotlib.cm as cm
-import fitting
-import general as gen
-import matplotlib
 import os.path
 import re
+
+import h5py
+import matplotlib
+import matplotlib.pyplot as plts
+import numpy as np
+import scipy.odr as sodr
+import scipy.optimize as sopt
+
+import fitting
+import general as gen
+import plots 
+import util 
+from util import cord_pairs
+
+
 ##################
 #helper functions#
 ##################
@@ -406,12 +406,12 @@ def plot_with_fitting(g_key,conn):
     
     istatus = plots.non_i_plot_start()
 
-    fig = plots.Figure('r[$\mu m$]','g(r)','g(r) + fitting temp: %.2f, '%temps + str(dset_key) ,
+    fig = plots.tac_figure('r[$\mu m$]','g(r)','g(r) + fitting temp: %.2f, '%temps + str(dset_key) ,
                        func = matplotlib.axes.Axes.step) 
     print fits.beta
     
-    fig.plot(g.x,g.y,label='data')
-    fig.plot(g.x[25:],fitting.fun_decay_exp_inv_gen(r0um)(fits.beta,g.x[25:]),label='fitting')
+    fig.draw_line(g.x,g.y,label='data')
+    fig.draw_line(g.x[25:],fitting.fun_decay_exp_inv_gen(r0um)(fits.beta,g.x[25:]),label='fitting')
     fig.axis((0,12),(0,3))
     plots.non_i_plot_stop(istatus)
 
@@ -569,27 +569,27 @@ def tmp_series_fit_plots(comp_list,conn):
     
     istatus = plots.non_i_plot_start()
 
-    fig_xi = plots.Figure('T [C]',r'fitting parameters [$\mu m$]','Fitting parameters') 
+    fig_xi = plots.tac_figure('T [C]',r'fitting parameters [$\mu m$]','Fitting parameters') 
 
     print [2*np.pi/p.beta[1] for p in fits ]
     
-    fig_xi.plot(temps,[p.beta[0] for p in fits ],
+    fig_xi.draw_line(temps,[p.beta[0] for p in fits ],
                     marker='x',label=r'$\xi$')
-    fig_xi.plot(temps,[(np.pi*2)/p.beta[1] for p in fits ],
+    fig_xi.draw_line(temps,[(np.pi*2)/p.beta[1] for p in fits ],
                     marker='x',label=r'$K$')
-    fig_xi.plot(temps,[p.beta[2] for p in fits ],
+    fig_xi.draw_line(temps,[p.beta[2] for p in fits ],
                     marker='x',label=r'$C$')
-    fig_xi.plot(temps,r0s,
+    fig_xi.draw_line(temps,r0s,
                     marker='x',label=r'$r_0$')
     
     
-    fig_err = plots.Figure('T [C]','errors [diff units]','fitting error')
-    fig_err.plot(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
-    fig_err.plot(temps,[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
-    fig_err.plot(temps,[p.res_var for p in fits ],'-x',label=r'res_var')
+    fig_err = plots.tac_figure('T [C]','errors [diff units]','fitting error')
+    fig_err.draw_line(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
+    fig_err.draw_line(temps,[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
+    fig_err.draw_line(temps,[p.res_var for p in fits ],'-x',label=r'res_var')
 
-    fig_b = plots.Figure('T [C]',r'$b-1$','$g(r)$ shift') 
-    fig_b.plot(temps,[p.beta[4]-1 for p in fits ],
+    fig_b = plots.tac_figure('T [C]',r'$b-1$','$g(r)$ shift') 
+    fig_b.draw_line(temps,[p.beta[4]-1 for p in fits ],
                     marker='x',label=r'$b-1$')
 
 
@@ -629,11 +629,11 @@ def plot_residue(comp_list,conn):
     
     
     istatus = plots.non_i_plot_start()
-    fig = plots.Figure('r [um]',r'$\frac{g(r) - fit(r)}{g(r)}$','Fitting residue') 
+    fig = plots.tac_figure('r [um]',r'$\frac{g(r) - fit(r)}{g(r)}$','Fitting residue') 
     for f,g,t,r0um in zip(fits,gofrs,temps,r0_ums):
         fun = fitting.fun_decay_exp_inv_gen(r0um)
         g_tmp,r = _trim_gofr(g,r0)
-        fig.plot(g_tmp.x,(g_tmp.y - fun(f.beta,g_tmp.x))/g_tmp.y,
+        fig.draw_line(g_tmp.x,(g_tmp.y - fun(f.beta,g_tmp.x))/g_tmp.y,
                  label='%.2f'%t,
                  color = cmap.get_color(t) )
     
@@ -870,7 +870,7 @@ def first_comp_g1_plot(comp_lst,conn,n=1,g1_fig=None,lab=None):
     
     # make plot
     if g1_fig is  None:
-        g1_fig = plots.Figure('Temperature [C]','$g_1 -1$','')
+        g1_fig = plots.tac_figure('Temperature [C]','$g_1 -1$','')
         
         
     
@@ -1112,9 +1112,9 @@ def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
 
     if fig_sofq is None:
         if length is None:
-            fig_sofq = plots.Figure(r'$k\sigma/2\pi$',r'$S(k)$','test',cmap=cmap)
+            fig_sofq = plots.tac_figure(r'$k\sigma/2\pi$',r'$S(k)$','test',cmap=cmap)
         else:
-            fig_sofq = plots.Figure(r'$k\sigma/2\pi$',r'$S(k)$','test',count=length,cmap=cmap)
+            fig_sofq = plots.tac_figure(r'$k\sigma/2\pi$',r'$S(k)$','test',count=length,cmap=cmap)
     
     fig_sofq.plot(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
     

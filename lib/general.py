@@ -14,21 +14,18 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
-
-import sqlite3
-import h5py
-import pov 
-import plots 
-import util 
-import numpy as np
-from util import cord_pairs
-import scipy.optimize as sopt
-import scipy.odr as sodr
 import bisect
-import itertools
-import matplotlib.pyplot as plts
-import fitting
 import datetime
+import itertools
+import sqlite3
+
+import h5py
+import numpy as np
+
+import fitting
+import util 
+
+
 def open_conn(fname=None):
     '''Opens the data base at the standard location and returns the connection'''
     if fname is None:
@@ -414,7 +411,8 @@ def avg_dtime(iden_key,conn):
     return dtime_sum/frame_count
 
 
-    
+
 def np_to_org(a):
     for b in a:
         print "|" + '|'.join(['%.3g'%c for c in b]) +'|'
+

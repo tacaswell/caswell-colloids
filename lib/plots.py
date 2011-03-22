@@ -16,26 +16,12 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import division
 
-import sqlite3
+import datetime
+import os.path
 
 import matplotlib
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-
-import itertools
-
-import numpy as np
-
-
-import itertools
-import os
-import os.path
-import general as gen
-
-
-
-import datetime
-
+import matplotlib.pyplot as plt
 
 
 class cord_pairs:
@@ -47,7 +33,7 @@ class cord_pairs:
 
 
 
-class Figure:
+class tac_figure:
     def __init__(self,xlabel,ylabel,title,*args,**kwargs):
         
         self.fig,self.ax = set_up_plot()
@@ -69,7 +55,7 @@ class Figure:
         
         add_labels(self.ax,title,xlabel,ylabel)
         
-    def plot(self,x,y,*args,**kwargs):
+    def draw_line(self,x,y,*args,**kwargs):
         if 'label' in kwargs:
             txt = kwargs['label']
             del kwargs['label']

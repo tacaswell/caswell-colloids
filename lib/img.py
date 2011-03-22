@@ -16,18 +16,18 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import division
 
-# needed for the wrapper classes
-import PIL
+import os.path
+
 import PIL.Image
+import h5py
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
 import numpy as np
 
+
+# needed for the wrapper classes
+
 # needed for plotting
-import matplotlib
-import matplotlib.pyplot as plt
-import matplotlib.cm as cm
-import os
-import os.path
-import h5py
 
 class Stack_wrapper:
     def __init__(self,fname):

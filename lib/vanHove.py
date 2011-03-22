@@ -16,15 +16,17 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import division
 
-import plots as plt
 import h5py
-import numpy as np
-import pdb
 import matplotlib
 import matplotlib.pyplot as mplt
-from general import fd
-import general as gen
+import numpy as np
+
 import fitting
+import general as gen
+import plots as plt
+from general import fd
+
+
 def read_vanHove(comp_key,conn):
     '''Takes in a comp_key to a van Hove computation and returns a
     sensible data structure'''
@@ -45,7 +47,7 @@ def plot_vanHove(comp_lst,time_step,conn):
     ''' '''
 
     cm = plt.color_mapper(27,33)
-    fig =  plt.Figure(r'$\Delta$','log(N)','van Hove',func=matplotlib.axes.Axes.step)
+    fig =  plt.tac_figure(r'$\Delta$','log(N)','van Hove',func=matplotlib.axes.Axes.step)
   
     
     for c in comp_lst:
@@ -59,7 +61,7 @@ def plot_vanHove(comp_lst,time_step,conn):
 
         count = g[fd('step',j)]['x']['disp_count'][:]
         edges = g[fd('step',j)]['x']['disp_edges'][:]
-        fig.plot(edges,numpy.log(count+1),label='%.2f'%temp,color=cm.get_color(temp))
+        fig.draw_line(edges,numpy.log(count+1),label='%.2f'%temp,color=cm.get_color(temp))
         
         del g
         Fin.close()
@@ -73,7 +75,7 @@ def plot_vanHove_pn(comp_lst,time_step,conn):
     ''' '''
     
     cm = plt.color_mapper(27,33)
-    fig =  plt.Figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
+    fig =  plt.tac_figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
   
     
     for c in comp_lst:
@@ -88,7 +90,7 @@ def plot_vanHove_pn(comp_lst,time_step,conn):
 
             count = g[fd('step',j)]['x']['disp_count'][:]
             edges = g[fd('step',j)]['x']['disp_edges'][:]
-            fig.plot(edges,count/np.sum(count),label='%.2f'%temp,color=cm.get_color(temp))
+            fig.draw_line(edges,count/np.sum(count),label='%.2f'%temp,color=cm.get_color(temp))
         
         del g
         Fin.close()
@@ -239,11 +241,11 @@ def _plot_alpha2(a_list):
     plots alpha2 from the list of outputs of compute_alpha handed in
     """
     cm = plt.color_mapper(27,33)
-    fig =  plt.Figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
+    fig =  plt.tac_figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
 
     for a,temp in a_list:
         dt,a2 = zip(*a)
-        fig.plot(dt,a2,
+        fig.draw_line(dt,a2,
                  label='%.2f'%temp,
                  color=cm.get_color(temp)
                  )
@@ -399,9 +401,9 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
         title = r'van Hove $\tau$: %g s'%(time_step/1000)
         cm = plt.color_mapper(np.min(tmps),np.max(tmps))
 
-    fig = plt.Figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    fig = plt.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
  
-    [fig.plot(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+    [fig.draw_line(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
      for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
     mplt.gca().set_ylim(1e-5,1)
 
@@ -425,10 +427,10 @@ def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
 
         
 
-    fig = plt.Figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    fig = plt.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
     for (a,b) in zip(data,comp_lst):
         (edges,count,temp,dtime,x_lim,comp_key) = a+b
-        fig.plot(edges,count/(np.max(count) ),label=str(comp_key))
+        fig.draw_line(edges,count/(np.max(count) ),label=str(comp_key))
     
     
 
@@ -454,7 +456,7 @@ def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = Non
     print T
     print hwhm
     if fig is None:
-        fig = plt.Figure('T [C]','hwhm [px]',title)
+        fig = plt.tac_figure('T [C]','hwhm [px]',title)
     fig.plot(T,hwhm,'x-',label = 'hwhm')
         
     return fig

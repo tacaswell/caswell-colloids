@@ -114,10 +114,10 @@ def fit_curve(x,y,p0,func):
     
 
 def display_fit(x,y,p,func,fig=None):
-    """Displays the raw data and the fit. fig is an plots.Figure
+    """Displays the raw data and the fit. fig is an plots.tac_figure
     object"""
     if fig is None:
-        fig = plots.Figure('x','y','fitting')
+        fig = plots.tac_figure('x','y','fitting')
         fig.plot(x,np.log(y),label='data')
         
     

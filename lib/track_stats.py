@@ -26,7 +26,7 @@ import plots as plt
 import plots
 import numpy as np
 from general import fd
-Fig = plots.Figure
+Fig = plots.tac_figure
 color_mapper = plots.color_mapper
 
 
@@ -79,7 +79,7 @@ def track_len_hists(comp_lst,conn):
     fig = Fig('length','counts','Track length histogram',func = matplotlib.axes.Axes.loglog)
     for hr in hist_res:
         temp = hr[2]
-        fig.plot(hr[1],hr[0],label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+        fig.draw_line(hr[1],hr[0],label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
 
 def _extract_track_lengths(track_key,conn):
     """Extracts the array of track lengths
