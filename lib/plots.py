@@ -32,6 +32,12 @@ class cord_pairs:
         return itertool.izip(x,y)
 
 
+def set_up_axis(xlabel,ylabel,title,*args,**kwargs):
+    fig,ax = set_up_plot()
+    add_labels(ax,title,xlabel,ylabel)
+    return ax
+
+
 
 class tac_figure:
     def __init__(self,xlabel,ylabel,title,*args,**kwargs):
