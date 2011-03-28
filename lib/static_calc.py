@@ -97,7 +97,8 @@ class hash_case:
 
 def link_dumb(h1,h2,m_range):
     """This function takes in a pair of hash case (which in this code
-    are single planes) and does linking"""
+    are single planes) and does linking This does not check to make
+    sure links are 1-1"""
 
     pairs = []
     buf = 1
