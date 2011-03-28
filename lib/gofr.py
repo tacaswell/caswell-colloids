@@ -511,13 +511,13 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
     f = plts.figure()
     #f.set_size_inches(4,4,forward=True)
     
-    a1 = f.add_axes([.15,.15,.8,.8])
+    a1 = f.add_axes([.1,.1,.85,.8])
     a2 = f.add_axes([.505+.055,.575+.01,.38,.28])
 
     a1.plot(g.x,g.y-1)
     a1.grid(True)
     a1.set_xlabel(r'r [$\mu m$]')
-    a1.set_ylabel(r'G(r) - 1')
+    a1.set_ylabel(r'$g(r) - 1$')
     if main_lim_max is not None:
         a1.set_ylim(-1,main_lim_max)
     
@@ -881,7 +881,7 @@ def first_comp_g1_plot(comp_lst,conn,n=1,g1_fig=None,lab=None):
             
 
 
-def make_gofr_by_plane_plots(comp,conn,ax=None):
+def make_gofr_by_plane_plots(comp,conn,ax=None,*args,**kwargs):
     istatus = plots.non_i_plot_start()
     if ax is None:
         (fig,ax) = plots.set_up_plot()
@@ -898,8 +898,8 @@ def make_gofr_by_plane_plots(comp,conn,ax=None):
     betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
     plane_num = range(0,len(betas))
     plane_num = temps
-    ax.plot(plane_num,np.array([b.beta[2] for b in betas])-1,'x')
-    ax.plot(plane_num,np.array([np.max(g.y) for g in gc])-1,'x')
+    ax.plot(plane_num,np.array([b.beta[2] for b in betas])-1,'x',*args,**kwargs)
+    #ax.plot(plane_num,np.array([np.max(g.y) for g in gc])-1,'x')
     ax.set_xlabel('comp index')
     ax.set_ylabel(r'$g_1-1$')
     ax.set_ylim([0, 3])
@@ -911,7 +911,7 @@ def make_gofr_by_plane_plots(comp,conn,ax=None):
     plane_num = range(0,len(betas))
     ax.plot(plane_num,temps)
     ax.set_xlabel('comp index')
-    ax.set_ylabel(r'$temperature')
+    ax.set_ylabel(r'temperature')
     ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
 
     # (fig,ax) = plots.set_up_plot()
