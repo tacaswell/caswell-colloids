@@ -14,15 +14,12 @@
 #
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
-
-import sqlite3 as sq
-import lib.util  as util
-import lib.general as gen
-import trackpy.cpp_wrapper as cw
-from datetime import datetime
-from datetime import date
 import os.path
 import re
+from datetime import datetime, date
+
+import lib.util  as util
+
 
 _base_path = '/home/tcaswell/colloids/data/polyNIPAM_batch_12/'
 
@@ -79,7 +76,7 @@ def guess_dtype(fname):
         return 'ztl'
     elif fname.find('_z')!=-1:
         return 'z'
-    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1:
+    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1 or fname.find('heating')!=-1:
         return 'ramp'
     else:
         return 't'
