@@ -23,7 +23,7 @@ import numpy as np
 
 import fitting
 import general as gen
-import plots as plt
+import plots as plots
 from general import fd
 
 
@@ -46,8 +46,8 @@ def read_vanHove(comp_key,conn):
 def plot_vanHove(comp_lst,time_step,conn):
     ''' '''
 
-    cm = plt.color_mapper(27,33)
-    fig =  plt.tac_figure(r'$\Delta$','log(N)','van Hove',func=matplotlib.axes.Axes.step)
+    cm = plots.color_mapper(27,33)
+    fig =  plots.tac_figure(r'$\Delta$','log(N)','van Hove',func=matplotlib.axes.Axes.step)
   
     
     for c in comp_lst:
@@ -74,8 +74,8 @@ def plot_vanHove(comp_lst,time_step,conn):
 def plot_vanHove_pn(comp_lst,time_step,conn):
     ''' '''
     
-    cm = plt.color_mapper(27,33)
-    fig =  plt.tac_figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
+    cm = plots.color_mapper(27,33)
+    fig =  plots.tac_figure(r'$\Delta$','P(N)','van Hove',func=matplotlib.axes.Axes.step)
   
     
     for c in comp_lst:
@@ -240,8 +240,8 @@ def _plot_alpha2(a_list):
     """
     plots alpha2 from the list of outputs of compute_alpha handed in
     """
-    cm = plt.color_mapper(27,33)
-    fig =  plt.tac_figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
+    cm = plots.color_mapper(27,33)
+    fig =  plots.tac_figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
 
     for a,temp in a_list:
         dt,a2 = zip(*a)
@@ -254,7 +254,7 @@ def plot_alpha2_grid(lsts,conn,title):
     ''' plots a grid of alpha2 plots.  Each entry in lsts is a pair
     the first entry is a list of 3-tuples that are (vanHove key, wind,min_count) and
     the second entry is a string for the title'''
-    cm = plt.color_mapper(27,33)
+    cm = plots.color_mapper(27,33)
     fig = mplt.figure()
     fig.suptitle(title)
     dims = figure_out_grid(len(lsts))
@@ -289,7 +289,7 @@ def plot_vanHove_dt(comp,conn,start,step_size,steps):
     dtime = g.attrs['dtime']
 
 
-    #  istatus = plt.non_i_plot_start()
+    #  istatus = plots.non_i_plot_start()
     
     fig = mplt.figure()
     fig.suptitle(r'van Hove dist temp: %.2f dtime: %d'% (temp,dtime))
@@ -320,7 +320,7 @@ def plot_vanHove_dt(comp,conn,start,step_size,steps):
 
     mplt.draw()
 
-    # plt.non_i_plot_start(istatus)
+    # plots.non_i_plot_start(istatus)
 
     del g
     Fin.close()
@@ -341,7 +341,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
-    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+    cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     
     extream = [(np.min(d[1]), np.max(d[1])) for d in data]
@@ -395,13 +395,13 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
     
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
-    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+    cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     if title is None:
         title = r'van Hove $\tau$: %g s'%(time_step/1000)
-        cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+        cm = plots.color_mapper(np.min(tmps),np.max(tmps))
 
-    fig = plt.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    fig = plots.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
  
     [fig.draw_line(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
      for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
@@ -427,7 +427,7 @@ def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
 
         
 
-    fig = plt.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
+    fig = plots.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
     for (a,b) in zip(data,comp_lst):
         (edges,count,temp,dtime,x_lim,comp_key) = a+b
         fig.draw_line(edges,count/(np.max(count) ),label=str(comp_key))
@@ -445,7 +445,7 @@ def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = Non
         
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
-    cm = plt.color_mapper(np.min(tmps),np.max(tmps))
+    cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     
     T = [d[2] for d in data]
@@ -456,7 +456,7 @@ def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = Non
     print T
     print hwhm
     if fig is None:
-        fig = plt.tac_figure('T [C]','hwhm [px]',title)
+        fig = plots.tac_figure('T [C]','hwhm [px]',title)
     fig.plot(T,hwhm,'x-',label = 'hwhm')
         
     return fig
@@ -475,7 +475,7 @@ def plot_hwhm_v_tau(comp,conn,steps,ax,wind =1,*args,**kwargs):
     if not 'label' in kwargs:
         kwargs['label'] = '%.2f'%temp
     if not 'color' in kwargs:
-        cm = plt.color_mapper(27,32)
+        cm = plots.color_mapper(27,32)
         kwargs['color'] = cm.get_color(temp)
     
     hwhm = [_vh_hwhm(v[0],v[1]) for v in vanHove]
