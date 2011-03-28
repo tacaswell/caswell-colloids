@@ -279,13 +279,12 @@ def get_iden_attrs_fr(comp_num,conn,attr_lst):
     """
     given an iden like computation number returns the (z,y,x) cords of the first frame
     """
-    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
-                                " function like 'Iden%'",(comp_num,)).fetchone()
+    (fname,) = conn.execute("select fout from iden where comp_key = ?",(comp_num,)).fetchone()
 
     out = None
     F = h5py.File(fname,'r')
     if all([at in F['/frame000000'].attrs for at in attr_lst]):
-        out = [ F['/frame000000'].attrs[at] for at in attr_lst]
+        out = [ [F[g].attrs[at] for g in F if not g=='parameters' ]for at in attr_lst]
 
     F.close()
     del F
@@ -295,8 +294,7 @@ def get_iden_attrs_tl(comp_num,conn,attr_lst):
     """
     given an iden like computation number returns the (z,y,x) cords of the first frame
     """
-    (func,fname) = conn.execute("select function,fout from comps where comp_key = ? and " +
-                                " function like 'Iden%'",(comp_num,)).fetchone()
+    (fname,) = conn.execute("select fout from iden where comp_key = ?",(comp_num,)).fetchone()
 
     out = None
     F = h5py.File(fname,'r')
@@ -345,7 +343,7 @@ def set_plane_exposure(iden_key,conn):
     Exposure in the top level data, parses it an puts it in the frame
     level meta-data where the file spec says it should be.  This is
     for making older iden files work with code that expects the
-    temperature to be in the meta-data"""
+    exposure to be in the meta-data"""
 
     (fname,) = conn.execute("select fout from comps where comp_key =? and function like 'Iden%'",(iden_key,)).fetchone()
     F = h5py.File(fname,'r+')
@@ -357,7 +355,7 @@ def set_plane_exposure(iden_key,conn):
             break
         grp = F[g]
         if 'Exposure' in grp.attrs.keys():
-            raise Exception("This file already has temperatures for the planes")
+            raise Exception("This file already has exposure for the planes")
         grp.attrs['Exposure'] = exp_time
         grp.attrs['Exposure units'] = exp_units
     F.close()
@@ -414,5 +412,19 @@ def avg_dtime(iden_key,conn):
 
 def np_to_org(a):
     for b in a:
-        print "|" + '|'.join(['%.3g'%c for c in b]) +'|'
+        print "|" + '|'.join(['%.2f'%c for c in b]) +'|'
 
+
+def get_plane_temps(dset_key,conn):
+    """Returns an array with the temperatures of the planes in the iden file """
+
+    (fname,iden_key) = conn.execute("select fout,comp_key from iden where dset_key = ?"
+                                    ,(dset_key,)).fetchone()
+    try:
+        F = h5py.File(fname,'r')
+        temps = [F[grp].attrs['temperature'] for grp in F if not grp =='parameters']
+    finally:
+        F.close()
+        del F
+
+    return temps
