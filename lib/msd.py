@@ -15,7 +15,7 @@
 #You should have received a copy of the GNU General Public License
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 
-import plots as plt
+import plots as plots
 import h5py
 import numpy
 import pdb
@@ -49,7 +49,7 @@ def write_delta_T(comp,conn):
     
 def plot_msd_old(comp_key,conn,fig=None):
     if fig is None:
-        fig = plt.tac_figure('t[s]','msd','msd')
+        fig = plots.tac_figure('t[s]','msd','msd')
         pass
     
     (fin,dset) = conn.execute("select fout,dset_key from comps where comp_key = ?",(comp_key,)).fetchone()
@@ -66,7 +66,7 @@ def plot_msd_old(comp_key,conn,fig=None):
     print 'the delta is ',  dt, 'for comp ' ,comp_key
     t = (numpy.arange(len(msd))+1)*dt
 
-    cm = plt.color_mapper(27,33)
+    cm = plots.color_mapper(27,33)
     
     fig.plot(t,msd,label=str(temp),color=cm.get_color(temp))
     Fin.close()
@@ -76,7 +76,7 @@ def plot_msd_old(comp_key,conn,fig=None):
 
 def plot_msd(comp_key,conn,fig=None):
     if fig is None:
-        fig = plt.tac_figure('t[s]','msd','msd')
+        fig = plots.tac_figure('t[s]','msd','msd')
         pass
     
     (fin,) = conn.execute("select fout from msd where comp_key = ?",(comp_key,)).fetchone()
@@ -95,7 +95,7 @@ def plot_msd(comp_key,conn,fig=None):
     print 'the delta is ',  dt, 'for comp ' ,comp_key
     t = (numpy.arange(len(msd))+1)*dt
 
-    cm = plt.color_mapper(27,33)
+    cm = plots.color_mapper(27,33)
     
     fig.plot(t,msd,label='%(#).2fC, %(!)d'%{"!":mtl,"#":temp},color=cm.get_color(temp))
     Fin.close()
@@ -113,7 +113,7 @@ def plot_msd_series(comp_key_lst,conn,sname=None):
 
         
     
-    fig = plt.tac_figure('t[ms]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.plot)
+    fig = plots.tac_figure('t[ms]',r'$\langle \Delta \rangle ^2$',tltstr,count=len(comp_key_lst),func=matplotlib.axes.Axes.plot)
     for c in comp_key_lst:
         plot_msd(c[0],conn,fig)
 
@@ -142,7 +142,7 @@ def fit_msd(comp_key,conn,make_plot = False):
     (x,r,rn,s) = numpy.linalg.lstsq(numpy.transpose(numpy.array([t,numpy.ones(len(msd))])),msd)
 
     if(make_plot):
-        fig = plt.tac_figure('t [ms]','msd [px^2]','msd and fit')
+        fig = plots.tac_figure('t [ms]','msd [px^2]','msd and fit')
         fig.draw_line(t,msd,'x',label= 'msd')
         print x[1]
         fig.draw_line(t,t*x[0] + x[1],label= 'fit')
