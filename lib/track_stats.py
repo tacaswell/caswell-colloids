@@ -67,7 +67,7 @@ def make_disp_sq_plots(comp_key,conn):
 
 
 
-def track_len_hists(comp_lst,conn,ax=None):
+def track_len_hists(comp_lst,conn,ax=None,*args,**kwargs):
     """makes histograms of the track lengths for the tracking computations in comp_lst """
 
     res = [_extract_track_lengths(c,conn) for c in comp_lst]
@@ -77,12 +77,12 @@ def track_len_hists(comp_lst,conn,ax=None):
     cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     
     if ax is None:
-        ax = plots.set_up_axis('t [s]','cumsum P(t)','',func = matplotlib.axes.Axes.plot)
+        ax = plots.set_up_axis('n*dtime [s]','cumsum $n P(n)$','',func = matplotlib.axes.Axes.plot)
         
     for hr in hist_res:
         temp = hr[2]
         ax.plot(np.cumsum((np.diff(hr[1]))+hr[1][0])*hr[3]/1000,np.cumsum(hr[0]*(hr[1][:-1]))/np.sum(hr[0]*(hr[1][:-1]))
-                      ,label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+                      ,label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp),*args,**kwargs)
 
 class Hist2D_accumlator (object):
     def __init__(self,data_dims,hist_dims):
