@@ -33,7 +33,7 @@ def fun_flipper(fun):
 
 # for g(r)
 def fun_decay_exp_inv_gen(r0):
-    """Returns C* r0/r exp(- (r-r0)/a) cos(K(r)+phi_0)
+    """Returns C* r0/r exp(- (r-r0)/a) cos(K(r)+phi_0) + 1
     evaluated at r.  p = (a,K,C,phi_0)"""
     def fit_fun(p,r):
         return (p[2]*r0 / r) * np.exp(-(r-r0)/p[0]  ) * np.cos(p[1]*r + p[3]) +1
