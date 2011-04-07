@@ -33,6 +33,7 @@ import plots
 import util 
 from util import cord_pairs
 
+import T_convert as ltc
 
 ##################
 #helper functions#
@@ -420,12 +421,25 @@ def plot_with_fitting(g_key,conn):
 ###########################
 #function of tmp functions#
 ###########################
-def tmp_series_gn2D(comp_list,conn):
+def tmp_series_gn2D(comp_list,conn,**kwargs):
     """Makes plots for g_1 to g_n
     
     comp_list : list of 1 element tuple that contain the computation
     number to be plotted
     """
+
+
+    r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        x_lab = r'$\phi/\phi^*$'
+        
+    else:
+        T_conv_fun = lambda x:x
+        x_lab = 'T [C]'
+        
+
     
     res = [conn.execute("select comp_key,fout\
     from gofr where comp_key = ?",c).fetchone()
@@ -450,11 +464,13 @@ def tmp_series_gn2D(comp_list,conn):
     fig,ax = plots.set_up_plot()
     
     for j in range(max([len(p[0]) for p in peaks])):
-        pairs = [(t,p[0][j][1]) for (t,p) in itertools.izip(temps,peaks) if len(p[0]) > j]
-        ax.plot([p[0] for p in pairs],[p[1]-1 for p in pairs],'x-',label='$g_'+str(j)+'$' )
+        pairs = [(t,p[0][j][1]-1) for (t,p) in itertools.izip(temps,peaks) if len(p[0]) > j]
+        t,v = zip(*pairs)
+        ax.plot(T_conv_fun(np.array(t)),v,'x-',label='$g_{'+str(j)+'}$' )
         
 
-    #ax.legend()
+    l = ax.legend()
+    l.set_bbox_to_anchor((1.125,1))
     plots.add_labels(ax,'$g_n$ maximums',r'T [C]','g(peak) -1')
 
 
@@ -464,10 +480,11 @@ def tmp_series_gn2D(comp_list,conn):
     leg_strs = []
     leg_hands = []
     for j in range(max([len(p[1]) for p in peaks])):
-        pairs = [(t,p[1][j][1]) for (t,p) in itertools.izip(temps,peaks) if len(p[1]) > j]
-        ax.plot([p[0] for p in pairs],[p[1]-1 for p in pairs],'x-',label='$g_'+str(j)+'$' )
+        pairs = [(t,p[1][j][1]-1) for (t,p) in itertools.izip(temps,peaks) if len(p[1]) > j]
+        t,v = zip(*pairs)
+        ax.plot(T_conv_fun(np.array(t)),v,'x-',label='$g_{'+str(j)+'}$' )
 
-    #ax.legend()
+    ax.legend()
     plots.add_labels(ax,'$g_n$ minimums',r'T [C]','g(peak) -1')
     
 
@@ -477,9 +494,10 @@ def tmp_series_gn2D(comp_list,conn):
     leg_hands = []
     for j in range(max([len(p[1]) for p in peaks])):
         pairs = [(t,p[1][j][0]) for (t,p) in itertools.izip(temps,peaks) if len(p[1]) > j]
-        ax.plot([p[0] for p in pairs],[p[1] for p in pairs],'x-',label='$g_'+str(j)+'$' )
+        t,v = zip(*pairs)
+        ax.plot(T_conv_fun(np.array(t)),v,'x-',label='$g_{'+str(j)+'}$' )
 
-    #ax.legend()
+    ax.legend()
     plots.add_labels(ax,'minimum locations',r'T [C]','r [$\mu m$]')
 
 
@@ -488,9 +506,10 @@ def tmp_series_gn2D(comp_list,conn):
     
     for j in range(max([len(p[0]) for p in peaks])):
         pairs = [(t,p[0][j][0]) for (t,p) in itertools.izip(temps,peaks) if len(p[0]) > j]
-        ax.plot([p[0] for p in pairs],[p[1] for p in pairs],'x-',label='$g_'+str(j)+'$' )
+        t,v = zip(*pairs)
+        ax.plot(T_conv_fun(np.array(t)),v,'x-',label='$g_{'+str(j)+'}$' )
 
-    #ax.legend()
+    ax.legend()
     plots.add_labels(ax,'peak locations',r'T [C]','r [$\mu m$]')
 
     
@@ -543,12 +562,24 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
 
     return f,a1,a2
     
-def tmp_series_fit_plots(comp_list,conn):
+def tmp_series_fit_plots(comp_list,conn,**kwargs):
     """Makes plots for g_1 to g_n
     
     comp_list : list of 1 element tuple that contain the computation
     number to be plotted
     """
+    
+    r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        x_lab = r'$\phi/\phi^*$'
+        
+    else:
+        T_conv_fun = lambda x:x
+        x_lab = 'T [C]'
+        
+
     
     res = [conn.execute("select comp_key,fout " +
                         "from gofr where comp_key = ?",c).fetchone()
@@ -556,48 +587,45 @@ def tmp_series_fit_plots(comp_list,conn):
 
 
     
-    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+    temps = np.array([get_gofr_tmp(r[1],r[0],conn) for r in res])
     zip_lst = zip(temps,res)
     zip_lst.sort(key=lambda x:x[0])
     temps,res = zip(*zip_lst)
-    
+    temps = np.array(temps)
     print temps
     
     gofrs = [get_gofr2D(r[0],conn) for r in res]
-    fits = [fit_gofr3(g,1,fitting.fun_decay_exp_inv_gen) for g in gofrs]
+    fits = [fit_gofr3(g,1.8,fitting.fun_decay_exp_inv_gen) for g in gofrs]
     fits,r0s = zip(*fits)
     
     istatus = plots.non_i_plot_start()
 
-    fig_xi = plots.tac_figure('T [C]',r'fitting parameters [$\mu m$]','Fitting parameters') 
+    fig_xi = plots.tac_figure(x_lab,r'fitting parameters [$\mu m$]','Fitting parameters') 
 
     print [2*np.pi/p.beta[1] for p in fits ]
     
-    fig_xi.draw_line(temps,[p.beta[0] for p in fits ],
+    fig_xi.draw_line(T_conv_fun(temps),[p.beta[0] for p in fits ],
                     marker='x',label=r'$\xi$')
-    fig_xi.draw_line(temps,[(np.pi*2)/p.beta[1] for p in fits ],
+    fig_xi.draw_line(T_conv_fun(temps),[(np.pi*2)/p.beta[1] for p in fits ],
                     marker='x',label=r'$K$')
-    fig_xi.draw_line(temps,[p.beta[2] for p in fits ],
+    fig_xi.draw_line(T_conv_fun(temps),[p.beta[2] for p in fits ],
                     marker='x',label=r'$C$')
-    fig_xi.draw_line(temps,r0s,
+    fig_xi.draw_line(T_conv_fun(temps),[p.beta[4] for p in fits ],
+                    marker='x',label=r'$r^*$')
+    fig_xi.draw_line(T_conv_fun(temps),r0s,
                     marker='x',label=r'$r_0$')
     
     
     fig_err = plots.tac_figure('T [C]','errors [diff units]','fitting error')
-    fig_err.draw_line(temps,[p.sum_square for p in fits ],'-x',label=r'sum_square')
-    fig_err.draw_line(temps,[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
-    fig_err.draw_line(temps,[p.res_var for p in fits ],'-x',label=r'res_var')
-
-    fig_b = plots.tac_figure('T [C]',r'$b-1$','$g(r)$ shift') 
-    fig_b.draw_line(temps,[p.beta[4]-1 for p in fits ],
-                    marker='x',label=r'$b-1$')
-
-
+    fig_err.draw_line(T_conv_fun(temps),[p.sum_square for p in fits ],'-x',label=r'sum_square')
+    fig_err.draw_line(T_conv_fun(temps),[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
+    fig_err.draw_line(T_conv_fun(temps),[p.res_var for p in fits ],'-x',label=r'res_var')
+    
     
     plots.non_i_plot_stop(istatus)
 
 
-    print [(np.pi*2)/p.beta[1] for p in fits ]
+    
     return fits
 def plot_residue(comp_list,conn):
     '''Plots the residue of the fitting and data '''
@@ -639,7 +667,7 @@ def plot_residue(comp_list,conn):
     
     plots.non_i_plot_stop(istatus)
 
-def set_up_gn_plots(sname):
+def set_up_gn_plots(sname,T=True):
     gn_fig = plts.figure()
     gn_ax = gn_fig.add_axes([.1,.1,.8,.8])
     fig = plts.figure()
@@ -649,9 +677,12 @@ def set_up_gn_plots(sname):
     ax.set_title(sname)
     ax.set_xlabel(r'r [$\mu m$]')
     ax.set_ylabel(r'$G(r)-1$')
-
-    gn_ax.set_title(sname + r' $g_1(T)$')
-    gn_ax.set_xlabel('T')
+    if T:
+        gn_ax.set_title(sname + r' $g_1(T)$')
+        gn_ax.set_xlabel('T')
+    else:
+        gn_ax.set_title(sname + r' $g_1(\phi/\phi^*)$')
+        gn_ax.set_xlabel('$\phi/\phi^*$')
     gn_ax.set_ylabel('$g_1-1$')
     
     
@@ -660,6 +691,12 @@ def set_up_gn_plots(sname):
 def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs):
     '''Takes in a sample name and plots all of the g(r) for it '''
     r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+    else:
+        T_conv_fun = lambda x:x
+    
     dset_names = ['bin_count', 'bin_edges']
 
     
@@ -667,9 +704,9 @@ def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs
            for c in comp_list]
 
     #res.sort(key=lambda x:x[2])
-
+    print res
     
-    (sname,) = conn.execute("select sname from dsets where dset_key = ?",(res[0][3],)).fetchone()
+    #(sname,) = conn.execute("select sname from dsets where dset_key = ?",(res[0][3],)).fetchone()
 
     print "there are " + str(len(res)) + " entries found"
     # check interactive plotting and turn it off
@@ -700,7 +737,7 @@ def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs
         
         ax.step(g.x,g.y-1,
                 color = cmap.get_color(temperature)
-                ,label = '%.2f'%temperature + ', %d'%r[3])
+                ,label = '%.2f'%T_conv_fun(temperature) + ', %d'%r[3])
         
             
         
@@ -733,7 +770,7 @@ def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs
     ax.legend()
     
     
-    gn_ax.plot(gn_t,np.array(gn_g)-1,'x-',**kwargs)
+    gn_ax.plot(T_conv_fun(np.array(gn_t)),np.array(gn_g)-1,'x-',**kwargs)
     gn_ylim = list(gn_ax.get_ylim())
     gn_ylim[0] = 0
     gn_ax.set_ylim(gn_ylim)
@@ -1287,7 +1324,7 @@ def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     
     return fitting.fit_curve(gofr.x,gofr.y,p0,func)
 
-def fit_gofr3(gofr,r0,gen_func,p0=(1,7,2,0,1)):
+def fit_gofr3(gofr,r0,gen_func,p0=(1,7,2,0,.5)):
     (gofr,r0) = _trim_gofr(gofr,r0)
 
     return fitting.fit_curve(gofr.x,gofr.y,p0,gen_func(r0)),r0

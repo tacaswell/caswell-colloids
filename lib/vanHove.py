@@ -26,6 +26,8 @@ import general as gen
 import plots as plots
 from general import fd
 
+import T_convert as ltc
+
 
 def read_vanHove(comp_key,conn):
     '''Takes in a comp_key to a van Hove computation and returns a
@@ -386,10 +388,16 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     return outs,tmps
 
 
-def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=False):
+def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,norm=False,**kwargs):
     ''''''
-
-    
+    r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        label_str = '%(#)0.2f'
+    else:
+        T_conv_fun = lambda x:x
+        label_str = '%(#)0.1f C'
     
     
     
@@ -399,13 +407,44 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,wind =1,norm=Fal
     data.sort(key=lambda x: x[2])
     if title is None:
         title = r'van Hove $\tau$: %g s'%(time_step/1000)
-        cm = plots.color_mapper(np.min(tmps),np.max(tmps))
-
-    fig = plots.tac_figure(r'$\Delta$ [px]',r'$N/N_{max}$',title,func=matplotlib.axes.Axes.semilogy)
- 
-    [fig.draw_line(edges,count/np.max(count),label='%(#)0.1f C'%{'#':temp},color=cm.get_color(temp))
+    cm = plots.color_mapper(np.min(tmps),np.max(tmps))
+    print tmps
+    if ax is None:
+        ax = plots.set_up_axis(r'$\Delta$ [$\mu$m]',r'$N/N_{max}$',title)
+        
+        
+    [ax.semilogy(edges*r_scale,count/np.max(count),
+                 label=label_str%{'#':T_conv_fun(temp)},color=cm.get_color(temp),**kwargs)
      for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
-    mplt.gca().set_ylim(1e-5,1)
+    ax.set_ylim(1e-3,1)
+
+
+
+def plot_vanHove_diff(vh_a,vh_b,time_step,conn,ax,wind =1,**kwargs):
+    ''''''
+
+    
+    
+    
+    
+    data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in [vh_a,vh_b]]
+        
+    data.sort(key=lambda x: x[2])
+    if title is None:
+        title = r'van Hove $\tau$: %g s'%(time_step/1000)
+    cm = plots.color_mapper(np.min(tmps),np.max(tmps))
+    print tmps
+    if ax is None:
+        ax = plots.set_up_axis(r'$\Delta$ [px]',r'$N/N_{max}$',title)
+        
+    count = data[0][1] - data[1][1]
+
+    edges = (data[0][0] + data[1][0])/2
+        
+    ax.plot(edges,count/np.max(count),**kwargs)
+    
+    
+
 
 def plot_vanHove(c,conn,ax,tau,*args,**kwargs):
     '''Extracts and plots a van Hove plot on to the given axis'''
@@ -435,31 +474,40 @@ def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
     
 
 
-def plot_hwhm_v_T(comp_lst,time_step,conn,title=None,wind =1,norm=True,fig = None):
+def plot_hwhm(comp_lst,time_step,conn,title=None,wind =1,norm=True,ax= None,**kwargs):
     '''the half-width half max of the van Hove distributions vs
     temperature at a fixed time step'''
     
+    r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        x_lab = r'$\phi/\phi^*$'
+        if title is None:
+            title = r'Half width half max vs $\phi/\phi^*$'
 
-    
-    
+    else:
+        T_conv_fun = lambda x:x
+        x_lab = 'T [C]'
+        if title is None:
+            title = 'Half width half max vs Temperature'
+
         
     data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
     cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
     
-    T = [d[2] for d in data]
-    hwhm = [_vh_hwhm(d[0],d[1]) for d in data]
-    if title is None:
-        title = 'Half width half max vs Temperature'
-
+    T = np.array([d[2] for d in data])
+    hwhm = np.array([_vh_hwhm(d[0],d[1]) for d in data])
+    
     print T
     print hwhm
-    if fig is None:
-        fig = plots.tac_figure('T [C]','hwhm [px]',title)
-    fig.plot(T,hwhm,'x-',label = 'hwhm')
+    if ax is None:
+        ax = plots.set_up_axis(x_lab,'hwhm [$\mu$m]',title)
+    ax.plot(T_conv_fun(T),hwhm*r_scale,'x-',label = '%.1f S'%(time_step/1000),**kwargs)
         
-    return fig
+    return ax
 
 
 def plot_hwhm_v_tau(comp,conn,steps,ax,wind =1,*args,**kwargs):
