@@ -533,7 +533,7 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
     a1 = f.add_axes([.1,.1,.85,.8])
     a2 = f.add_axes([.505+.055,.575+.01,.38,.28])
 
-    a1.plot(g.x,g.y-1)
+    a1.step(g.x,g.y-1)
     a1.grid(True)
     a1.set_xlabel(r'r [$\mu m$]')
     a1.set_ylabel(r'$g(r) - 1$')
@@ -541,7 +541,7 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
         a1.set_ylim(-1,main_lim_max)
     
 
-    a2.plot(g.x[1000:],g.y[1000:]-1)
+    a2.step(g.x[1000:],g.y[1000:]-1)
     ## a2.set_xlabel(r'r [$\mu m$]')
     ## a2.set_ylabel(r'G(r) - 1')
     if inset_lim is None:
