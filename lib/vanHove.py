@@ -173,8 +173,8 @@ def _extract_vanHove(g,j,count_cut,wind):
 
     edges = g[fd('step',j)]['y']['disp_edges'][:]
     
-    edges = np.array([np.mean(edges[j:j+wind]) for j in range(1,len(count)-wind,wind)])
-    count = np.array([np.sum(count[j:j+wind]) for j in range(1,len(count)-wind,wind)])
+    edges = np.array([np.mean(edges[j:j+wind]) for j in range(0,len(count)-wind,wind)])
+    count = np.array([np.sum(count[j:j+wind]) for j in range(0,len(count)-wind,wind)])
 
     x_lim = (np.min(edges),np.max(edges))
 
@@ -227,7 +227,7 @@ def compute_alpha(comp,conn,wind ,min_count ):
     del Fin
 
     return a,temp
-def plot_alpha2(comp_list,conn,wind,min_count):
+def plot_alpha2(comp_list,conn,wind,min_count,Tc=0):
     """
     Takes in a comp_list and plots the alpha2().
 
@@ -243,14 +243,15 @@ def _plot_alpha2(a_list):
     plots alpha2 from the list of outputs of compute_alpha handed in
     """
     cm = plots.color_mapper(27,33)
-    fig =  plots.tac_figure(r'$\Delta \tau$ [ms]',r'$\alpha_2$',' ',func=matplotlib.axes.Axes.step)
+    
+    ax =  plots.set_up_axis(r'$\Delta \tau$ [ms]',r'$\alpha_2$','')
 
     for a,temp in a_list:
         dt,a2 = zip(*a)
-        fig.draw_line(dt,a2,
-                 label='%.2f'%temp,
-                 color=cm.get_color(temp)
-                 )
+        ax.step(dt,a2,
+                label='%.2f'%temp,
+                color=cm.get_color(temp),
+                where='post')
     
 def plot_alpha2_grid(lsts,conn,title):
     ''' plots a grid of alpha2 plots.  Each entry in lsts is a pair
@@ -401,7 +402,7 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,
     
     
     
-    data = [extract_vanHove(c,conn,time_step,1,wind,norm=norm) for c in comp_lst]
+    data = [extract_vanHove(c,conn,time_step,50,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
     cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
@@ -413,9 +414,10 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,
         ax = plots.set_up_axis(r'$\Delta$ [$\mu$m]',r'$N/N_{max}$',title)
         
         
-    [ax.semilogy(edges*r_scale,count/np.max(count),
-                 label=label_str%{'#':T_conv_fun(temp)},color=cm.get_color(temp),**kwargs)
+    [ax.step(edges*r_scale,count/np.max(count),
+                 label=label_str%{'#':T_conv_fun(temp)},color=cm.get_color(temp),where='post',**kwargs)
      for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
+    ax.set_yscale('log')
     ax.set_ylim(1e-3,1)
 
 
@@ -499,7 +501,7 @@ def plot_hwhm(comp_lst,time_step,conn,title=None,wind =1,norm=True,ax= None,**kw
     data.sort(key=lambda x: x[2])
     
     T = np.array([d[2] for d in data])
-    hwhm = np.array([_vh_hwhm(d[0],d[1]) for d in data])
+    hwhm = np.array([_vh_msd(d[0],d[1]) for d in data])
     
     print T
     print hwhm
@@ -638,17 +640,26 @@ def fix_vanHove_dtime(vh_key,conn):
 
 
 def _vh_hwhm(edges,count):
-    """Finds the full width half max of the van Hove """
+    """Finds the half width half max of the van Hove """
 
     # find the maximum value
 
     c_max = np.max(count)
     indx = np.nonzero(count >= (c_max/2))[0]
     return (edges[indx[-1]] - edges[indx[0]])/2
+def _vh_msd(edges,count):
+    """Computes the MSD  """
+    
+    # get bin centers
+    cents = gen.get_bin_centers(edges)
+    
+    return np.sum(count*(cents**2))/np.sum(count)
 
 def remove_vanHove_computation(comp_key,conn):
-    '''Completely removes the computation from the results and the database'''
-    (fin,) = conn.execute("select fout from vanHove where comp_key = ?",comp_key).fetchone()
+    '''Completely removes the computation from the results and the
+    database'''
+    (fin,) = conn.execute("select fout from vanHove where comp_key = ?",
+                          comp_key).fetchone()
     print fin
     conn.execute("delete from vanHove where comp_key = ?",comp_key)
     conn.execute("delete from comps where comp_key = ?",comp_key)
