@@ -251,7 +251,7 @@ def get_gofr2D_rho(comp_num,conn):
 
     dset_names = ['bin_count', 'bin_edges']
     
-    res = conn.execute("select fout from comps where comp_key = ?",(comp_num,)).fetchall()
+    res = conn.execute("select fout from gofr where comp_key = ?",(comp_num,)).fetchall()
     if not len(res) == 1:
         print len(res)
         raise util.dbase_error("error looking up computation")
@@ -270,6 +270,71 @@ def get_gofr2D_rho(comp_num,conn):
         F.close()
 
     return cord_pairs(bins,gofr),rho
+
+
+
+def get_gofr2D_dict(comp_num,conn):
+    '''Takes in computation number and database connection and
+    extracts the given g(r) and returns it as a cord_pairs object
+    (left bin edge,value)
+    Also return a dictionary of all the meta data in the file.
+    '''
+
+    dset_names = ['bin_count', 'bin_edges']
+    
+    
+    
+    res = conn.execute("select fout from gofr where comp_key = ?",comp_num).fetchall()
+    
+    if not len(res) == 1:
+        print len(res)
+        raise util.dbase_error("error looking up computation")
+    
+    
+    try:
+        
+        F = h5py.File(res[0][0],'r')
+        g = F["gofr_%(#)07d"%{"#":comp_num[0]}]
+        attr = dict(g.attrs)
+        # see if scale is in the meta data, if not add it
+        if 'scale' not in attr:
+            attr['scale'] = 6.45/60
+
+        # convert the units on rho
+        attr['rho'] = attr['rho']/(attr['scale']**2)
+        
+        # deal with temperature
+        if 'temperature' not in  attr:
+            # hack to get the file format from 2010-05-24 to work
+            (data_fname,) = conn.execute("select fname from dsets where dset_key in " +
+                                         "(select dset_key from gofr where comp_key = ?)",
+                                         (comp_num,)).fetchone()
+
+            pos_temps = re.findall('[23][0-9]-[0-9]',data_fname)
+            if len(pos_temps) > 0:
+                t = float(pos_temps[0].replace('-','.'))
+            elif data_fname.find('room')>0:
+                t = 27.0
+            else:
+                pos_temps = re.findall('[23][0-9]\.[0-9]',data_fname)
+                if len(pos_temps) > 0:
+                    t = float(pos_temps[0].replace('-','.'))
+                else:
+                    print data_fname
+                    raise Exception("can't figure out temperature")
+            attr['temperature'] = t
+
+
+        
+        gofr = np.array(g[dset_names[0]])
+        bins = np.array(g[dset_names[1]])*attr['scale']
+
+        
+ 
+    finally:
+        F.close()
+
+    return cord_pairs(bins,gofr),attr
 
 def get_gofr_tmp(fname,comp_num,conn):
     F = h5py.File(fname,'r')
@@ -325,6 +390,36 @@ def get_rhoT(comp,conn):
     del F
     
     return (rho,temp)
+
+    
+def rebin_gofr(comp_key,conn,bin_count):
+    ''' Takes a g(r) computation and re bins the data to wider bins
+    (integer multiple of existing bins
+
+    returns the same data is the same format as the other g(r) extraction functions.
+
+    '''
+
+    # extract the raw g(r)
+    data,attr = get_gofr2D_dict(comp_key,conn)
+    # convert the bin values to un-normalized counts
+
+    
+    bins = np.append(data.x ,[attr['max_range'] * attr['scale']])
+    vals = data.y * np.diff(bins**2)    # we don't need pi because it will be divided out below
+    
+    # calculate new bin edges
+    n_bins = data.x[::bin_count]
+    if len(data.x)%bin_count == 0:
+        n_bins = np.append(n_bins, bins[(len(data.x)//bin_count)*bin_count])
+    # sum bin counts
+    n_vals = np.array([np.sum(vals[j:j+bin_count]) for j in range(0,len(vals)-bin_count+1,bin_count)])
+    # re-normalize bin values
+
+    n_vals = n_vals/np.diff(n_bins**2)  # we don't need pi because it is omitted above as well
+
+    return cord_pairs(n_bins[:-1],n_vals),attr
+
 
 ####################
 #plotting functions#
@@ -1417,4 +1512,3 @@ def fix_temperature(comp_key,conn):
     return t
 
 
-    
