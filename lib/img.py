@@ -146,7 +146,7 @@ def _plot_centers(img,x,y):
     # the lines in in order.  I should change my code, but I have too
     # much other stuff written around it now for it to be worth 'fixing'
     ax.imshow(np.flipud(img),interpolation='nearest',cmap=cm.gray)
-    ax.plot(x,y,'rx')
+    ax.plot(x,y,'k.')
 
     non_i_plot_stop(istatus)
     # turns interactive plotting back on.
