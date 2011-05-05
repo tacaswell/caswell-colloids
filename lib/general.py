@@ -428,3 +428,12 @@ def get_plane_temps(dset_key,conn):
         del F
 
     return temps
+
+def get_bin_centers(left_edges):
+    """returns an array of the same size which represents the center
+    of the bin if the input is the left edges"""
+
+    bin_diffs = np.diff(left_edges)/2
+    bin_diffs = np.append(bin_diffs,np.mean(bin_diffs))
+
+    return left_edges + bin_diffs
