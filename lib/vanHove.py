@@ -475,8 +475,12 @@ def plot_traking_variation(dset_key,time_step,conn,wind=1,title=None,norm=None):
     
     
 
-
 def plot_hwhm(comp_lst,time_step,conn,title=None,wind =1,norm=True,ax= None,**kwargs):
+    '''tramp function to keep from needing to re-write a lot of code
+    due to the below renaming'''
+    plot_vanHove_reduction(comp_lst,time_step,conn,fun=_vh_hwhm,title=title,wind=wind,norm=norm,ax=ax,**kwargs)
+    
+def plot_vanHove_reduction(comp_lst,time_step,conn,fun=_vh_msd,title=None,wind =1,norm=True,ax= None,**kwargs):
     '''the half-width half max of the van Hove distributions vs
     temperature at a fixed time step'''
     
@@ -501,11 +505,11 @@ def plot_hwhm(comp_lst,time_step,conn,title=None,wind =1,norm=True,ax= None,**kw
     data.sort(key=lambda x: x[2])
     
     T = np.array([d[2] for d in data])
-    hwhm = np.array([_vh_msd(d[0],d[1]) for d in data])
+    hwhm = np.array([fun(d[0],d[1]) for d in data])
     
     print T
     print hwhm
-    if ax is None:
+    if ax is None  and fun ==_vh_hwhm:
         ax = plots.set_up_axis(x_lab,'hwhm [$\mu$m]',title)
     ax.plot(T_conv_fun(T),hwhm*r_scale,'x-',label = '%.1f S'%(time_step/1000),**kwargs)
         
