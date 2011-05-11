@@ -399,10 +399,19 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,
     else:
         T_conv_fun = lambda x:x
         label_str = '%(#)0.1f C'
+
+    bin_min = 0
+    if 'bin_min' in kwargs:
+        bin_min = kwargs['bin_min']
+        del kwargs['bin_min']
+
+    norm_fun = np.max
+    if 'norm_fun' in kwargs:
+        norm_fun = kwargs['norm_fun']
+        del kwargs['norm_fun']
     
     
-    
-    data = [extract_vanHove(c,conn,time_step,50,wind,norm=norm) for c in comp_lst]
+    data = [extract_vanHove(c,conn,time_step,bin_min,wind,norm=norm) for c in comp_lst]
     tmps = [d[2] for d in data]
     cm = plots.color_mapper(np.min(tmps),np.max(tmps))
     data.sort(key=lambda x: x[2])
@@ -414,7 +423,7 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,
         ax = plots.set_up_axis(r'$\Delta$ [$\mu$m]',r'$N/N_{max}$',title)
         
         
-    [ax.step(edges*r_scale,count/np.max(count),
+    [ax.step(edges*r_scale,count/norm_fun(count),
                  label=label_str%{'#':T_conv_fun(temp)},color=cm.get_color(temp),where='post',**kwargs)
      for (edges,count,temp,dtime,x_lim) in data if len(count)>0]
     ax.set_yscale('log')
@@ -480,9 +489,12 @@ def plot_hwhm(comp_lst,time_step,conn,title=None,wind =1,norm=True,ax= None,**kw
     due to the below renaming'''
     plot_vanHove_reduction(comp_lst,time_step,conn,fun=_vh_hwhm,title=title,wind=wind,norm=norm,ax=ax,**kwargs)
     
-def plot_vanHove_reduction(comp_lst,time_step,conn,fun=_vh_msd,title=None,wind =1,norm=True,ax= None,**kwargs):
+def plot_vanHove_reduction(comp_lst,time_step,conn,fun=None,title=None,wind =1,norm=True,ax= None,**kwargs):
     '''the half-width half max of the van Hove distributions vs
     temperature at a fixed time step'''
+
+    if fun is None:
+        fun = _vh_msd
     
     r_scale = 6.45/60
     if 'Tc' in kwargs:
@@ -651,6 +663,7 @@ def _vh_hwhm(edges,count):
     c_max = np.max(count)
     indx = np.nonzero(count >= (c_max/2))[0]
     return (edges[indx[-1]] - edges[indx[0]])/2
+
 def _vh_msd(edges,count):
     """Computes the MSD  """
     
