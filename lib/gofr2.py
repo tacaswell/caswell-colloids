@@ -19,7 +19,6 @@ from __future__ import division
 import h5py
 import numpy as np
 
-
 class Gofr_wrapper (object):
     """ This is a class to wrap around the gofr data files to make the
     keeping track of the hdf files simpler and to facilitate
@@ -43,6 +42,13 @@ class Gofr_wrapper (object):
         self.T = None
         self.scale_factor = None
         self.rho = None
+
+        self.r0 = None
+        self.p = None
+        self.fit_fun = None
+        
+        self.peaks = None
+        self.troughs = None
 
         # constants
         self.scale_factor = 6.45/60   # TODO this should be extracted 
@@ -99,18 +105,28 @@ class Gofr_wrapper (object):
             # clean up the h5 file
             F.close()
             del F
-        
-        # do extraction
 
+    def fit_peaks(self,r,gen_func,p0=(1,7,2,0)):
+        """Process the g(r) data held in this object to fit the peaks """
+        
+        d0 = self.bins[np.argmax(self.gofr[15:])+15]
+
+        # convert r0 to real units
+        self.r0 =r * d0
+        self.fit_fun = gen_func(self.r0)
+        
+        # cut the data at r0
+        r_arg = np.argmax([v for v in gofr.x if v<= r0])
+        tmp_gofr = self.gofr[r_arg:]
+        tmp_bins = self.bins[r_arg:]
+    
+        self.p = fitting.fit_curve(tmp_bins,tmp_gofr,p0)
+        pass
+    def find_peaks(self):
+        """Processes the g(r) data held in the object to find the  local min and max"""
         pass
 
-class Gofr_bp_wrapper (object):
-    """ Clone of above to deal with by plane files use a setter
-    function to select which plane to extract, init takes argument for
-    initial loaded plane
 
-    make the internals look identical to Gofr_wrapper
-    """
 
 
 ##################
@@ -120,8 +136,8 @@ def find_peaks_fit(bin_centers,gofr,dfun,p):
     """Looks for peaks based on hints from the derivative of the expected function and
     the fit parameters
     returns 4 lists, one entry per peak found
-    lmax [(location, height),]
-    lmin [(location, depth),]
+    local_max_lst [(location, height),]
+    local_min_lst [(location, depth),]
     diffs [expected-actual, ] (min and max interleaved)
     sz [coeff in quad,]
     """
@@ -129,15 +145,15 @@ def find_peaks_fit(bin_centers,gofr,dfun,p):
     dfun = fitting.fun_flipper(dfun)
     wind = 20;
 
-    lmax = []
-    lmin = []
+    local_max_lst = []
+    local_min_lst = []
     diffs = []
     sz = []
     # find the first max
     indx = np.argmax(gp.y[15:])+15
     pfit = fit_quad_to_peak(bin_centers[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
 
-    lmax.append((pfit.beta[1],pfit.beta[2]))
+    local_max_lst.append((pfit.beta[1],pfit.beta[2]))
     diffs.append(bin_centers[indx]-pfit.beta[1])
     # get expected spacing from
     e_spc = (2*np.pi)/p[1]
@@ -180,13 +196,13 @@ def find_peaks_fit(bin_centers,gofr,dfun,p):
             if cur_state != -1:
                 print "found two peaks in a row"
                 break
-            lmin.append((pfit.beta[1],pfit.beta[2]))
+            local_min_lst.append((pfit.beta[1],pfit.beta[2]))
             cur_state = np.sign(pfit.beta[0])
         elif pfit.beta[0]<0:
             if cur_state != 1:
                 print "found two troughs in a row"
                 break
-            lmax.append((pfit.beta[1],pfit.beta[2]))
+            local_max_lst.append((pfit.beta[1],pfit.beta[2]))
             cur_state = np.sign(pfit.beta[0])
 
             
@@ -195,7 +211,7 @@ def find_peaks_fit(bin_centers,gofr,dfun,p):
         wind +=1
         pass
     
-    return lmax,lmin,diffs,sz
+    return local_max_lst,local_min_lst,diffs,sz
 
 def fit_quad_to_peak(x,y):
     """Fits a quadratic to the data points handed in """
