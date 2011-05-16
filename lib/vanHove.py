@@ -191,11 +191,10 @@ def _alpha2(edges,count):
     tmp_count = count/np.sum(count)
     
     return (
-        np.sum((edges**4) *tmp_count )/
-            (
-            (5/3)*
-                np.sum((edges**2)*tmp_count)
-                **2)
+        np.sum(
+            (edges**4) *tmp_count )/
+        (3*(np.sum((edges**2)*tmp_count)
+                **2))
         ) -1
 
 
