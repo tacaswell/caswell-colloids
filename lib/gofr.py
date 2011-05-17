@@ -27,13 +27,15 @@ import numpy as np
 import scipy.odr as sodr
 import scipy.optimize as sopt
 
+
+
+import T_convert as ltc
 import fitting
 import general as gen
 import plots 
 import util 
 from util import cord_pairs
 
-import T_convert as ltc
 
 ##################
 #helper functions#
@@ -712,9 +714,9 @@ def tmp_series_fit_plots(comp_list,conn,**kwargs):
     
     
     fig_err = plots.tac_figure('T [C]','errors [diff units]','fitting error')
-    fig_err.draw_line(T_conv_fun(temps),[p.sum_square for p in fits ],'-x',label=r'sum_square')
-    fig_err.draw_line(T_conv_fun(temps),[p.sum_square_delta for p in fits ],'-x',label=r'sum_square_delta')
-    fig_err.draw_line(T_conv_fun(temps),[p.res_var for p in fits ],'-x',label=r'res_var')
+    fig_err.draw_line(T_conv_fun(temps),[p.sum_square for p in fits ],'-x',label=r'sum square')
+    fig_err.draw_line(T_conv_fun(temps),[p.sum_square_delta for p in fits ],'-x',label=r'sum square delta')
+    fig_err.draw_line(T_conv_fun(temps),[p.res_var for p in fits ],'-x',label=r'res var')
     
     
     plots.non_i_plot_stop(istatus)
@@ -889,6 +891,12 @@ def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs
 
     return zip(gn_t,gn_g)
 
+
+
+
+
+
+    
 def make_gn_plots(comp_list,conn,axs,*args,**kwargs):
     '''Takes in a computation list.  Plots the g_n line on to the nth
     axes in axs.  args and kwargs are passed to plot'''
