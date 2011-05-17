@@ -226,24 +226,24 @@ def compute_alpha(comp,conn,wind ,min_count ):
     del Fin
 
     return a,temp
-def plot_alpha2(comp_list,conn,wind,min_count,Tc=0):
+def plot_alpha2(comp_list,conn,wind,min_count,Tc=0,ax=None):
     """
     Takes in a comp_list and plots the alpha2().
 
     returns a list of the compute_alpha results
     """
     a_lst = [compute_alpha(c,conn,wind,min_count) for c in comp_list]
-    _plot_alpha2(a_lst)
+    _plot_alpha2(a_lst,ax)
 
     return a_lst
 
-def _plot_alpha2(a_list):
+def _plot_alpha2(a_list,ax):
     """
     plots alpha2 from the list of outputs of compute_alpha handed in
     """
     cm = plots.color_mapper(27,33)
-    
-    ax =  plots.set_up_axis(r'$\Delta \tau$ [ms]',r'$\alpha_2$','')
+    if ax is None:
+        ax =  plots.set_up_axis(r'$\Delta \tau$ [ms]',r'$\alpha_2$','')
 
     for a,temp in a_list:
         dt,a2 = zip(*a)
