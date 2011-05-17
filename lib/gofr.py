@@ -26,6 +26,9 @@ import matplotlib.pyplot as plts
 import numpy as np
 import scipy.odr as sodr
 import scipy.optimize as sopt
+from matplotlib.collections import PolyCollection
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.colors import colorConverter
 
 import fitting
 import general as gen
@@ -782,6 +785,79 @@ def set_up_gn_plots(sname,T=True):
     
     
     return (ax,gn_ax)
+def make_gofr_tmp_series_3Dplot(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs):
+    '''Takes in a sample name and plots all of the g(r) for it '''
+    r_scale = 6.45/60
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+    else:
+        T_conv_fun = lambda x:x
+    
+    dset_names = ['bin_count', 'bin_edges']
+
+    
+    res = [conn.execute("select comp_key,fout,fin,dset_key from gofr where comp_key = ? ",c).fetchone()
+           for c in comp_list]
+
+    #res.sort(key=lambda x:x[2])
+    print res
+    
+    #(sname,) = conn.execute("select sname from dsets where dset_key = ?",(res[0][3],)).fetchone()
+
+    print "there are " + str(len(res)) + " entries found"
+    # check interactive plotting and turn it off
+    istatus = plts.isinteractive();
+    print istatus
+    if istatus:plts.ioff()
+
+    
+    fig = plts.figure()
+    ax = Axes3D(fig)
+
+    
+    gn_g = []
+    gn_t = []
+    gn_p = []
+
+    
+    
+        
+        
+    temps = [get_gofr_tmp(r[1],r[0],conn)+T_correction for r in res]
+    tmax = max(temps)
+    tmin = min(temps)
+    
+    cmap = plots.color_mapper(tmin,tmax)
+    verts = []
+    fc = []
+    for r,temperature in zip(res,temps):
+        g = get_gofr2D(r[0],conn)
+        verts.append(zip(g.x,g.y-1))
+        fc.append(cmap.get_color(temperature))
+
+        
+    poly = PolyCollection(verts, facecolors = fc)
+    poly.set_alpha(0.7)
+    ax.add_collection3d(poly, zs=temps, zdir='y')
+
+    ax.set_xlim3d(0,10)
+    ax.set_ylim3d(27,31)
+    ax.set_zlim3d(-2,3)
+
+    fig = plts.figure()
+    ax = Axes3D(fig)
+    X = np.vstack([np.array(zip(*v)[0]).T for v in verts])
+    Y = np.vstack([np.array(zip(*v)[1]).T for v in verts])
+    Z = np.vstack(np.array([temps]*2000)).T
+    
+    ax.plot_wireframe(X,Z,Y)
+    
+    ax.set_xlim3d(0,10)
+    ax.set_ylim3d(27,31)
+    ax.set_zlim3d(-2,3)
+
+    plts.show()
 
 def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs):
     '''Takes in a sample name and plots all of the g(r) for it '''
