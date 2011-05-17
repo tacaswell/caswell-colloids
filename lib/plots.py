@@ -37,6 +37,34 @@ def set_up_axis(xlabel,ylabel,title,*args,**kwargs):
     add_labels(ax,title,xlabel,ylabel)
     return ax
 
+def set_up_plot():
+    fig = plt.figure()
+    ax = fig.add_axes([.1,.1,.8,.8])
+    ax.hold(True)
+    ax.grid(True)
+    return fig,ax
+
+def add_labels(ax,title_txt,xlabel_txt,ylabel_txt):
+    """Sets the title, xlabel, and ylabel texts on the axis ax """
+    ax.set_title(title_txt)
+    ax.set_xlabel(xlabel_txt)
+    ax.set_ylabel(ylabel_txt)
+
+
+def save_figure(fname,fig):
+    """Saves a figure to the proper date folder """
+    spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
+    if not  os.path.isdir(spath):
+        os.makedirs(spath,0755)
+    if os.path.isfile(spath+fname+'.png') or os.path.isfile(spath+fname+'.eps'):
+        raise Exception("file name exists: " + spath + fname)
+
+    
+    fig.savefig(spath + fname+'.eps',format='eps',dpi=400)
+    print '[[' + spath + fname+'.eps]]'
+    fig.savefig(spath + fname+'.png',format='png')
+    print '[[' + spath + fname+'.png]]'
+
 
 
 class tac_figure:
@@ -104,13 +132,6 @@ class color_mapper:
     def get_color(self,t):
         return self.cmp((t-self._mn)/(self._mx-self._mn))
 
-def add_labels(ax,title_txt,xlabel_txt,ylabel_txt):
-    """Sets the title, xlabel, and ylabel texts on the axis ax """
-    ax.set_title(title_txt)
-    ax.set_xlabel(xlabel_txt)
-    ax.set_ylabel(ylabel_txt)
-
-
 def non_i_plot_start():
     istatus = plt.isinteractive();
     print istatus
@@ -128,27 +149,6 @@ def non_i_plot_stop(istatus):
         print "closing all figures"
         plt.close('all')
 
-def set_up_plot():
-    fig = plt.figure()
-    ax = fig.add_axes([.1,.1,.8,.8])
-    ax.hold(True)
-    ax.grid(True)
-    return fig,ax
-
 
     
 
-
-def save_figure(fname,fig):
-    """Saves a figure to the proper date folder """
-    spath = '/home/tcaswell/colloids/figures/' + str(datetime.date.today()) + '/'
-    if not  os.path.isdir(spath):
-        os.makedirs(spath,0755)
-    if os.path.isfile(spath+fname+'.png') or os.path.isfile(spath+fname+'.eps'):
-        raise Exception("file name exists: " + spath + fname)
-
-    
-    fig.savefig(spath + fname+'.eps',format='eps',dpi=400)
-    print '[[' + spath + fname+'.eps]]'
-    fig.savefig(spath + fname+'.png',format='png')
-    print '[[' + spath + fname+'.png]]'
