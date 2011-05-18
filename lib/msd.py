@@ -17,7 +17,7 @@
 
 import plots as plots
 import h5py
-import numpy
+import numpy as np
 import pdb
 import matplotlib
 _C_to_K = 273.15
@@ -64,7 +64,7 @@ def plot_msd_old(comp_key,conn,fig=None):
     dt = Fin[g_name].attrs['dtime']
     print 
     print 'the delta is ',  dt, 'for comp ' ,comp_key
-    t = (numpy.arange(len(msd))+1)*dt
+    t = (np.arange(len(msd))+1)*dt
 
     cm = plots.color_mapper(27,33)
     
@@ -93,7 +93,7 @@ def plot_msd(comp_key,conn,fig=None):
     mtl = Fin[g_name].attrs['min_track_length']
     print 
     print 'the delta is ',  dt, 'for comp ' ,comp_key
-    t = (numpy.arange(len(msd))+1)*dt
+    t = (np.arange(len(msd))+1)*dt
 
     cm = plots.color_mapper(27,33)
     
@@ -137,9 +137,9 @@ def fit_msd(comp_key,conn,make_plot = False):
     Fin.close()
     del Fin
     
-    t = (numpy.arange(len(msd))+1)*dt
+    t = (np.arange(len(msd))+1)*dt
      
-    (x,r,rn,s) = numpy.linalg.lstsq(numpy.transpose(numpy.array([t,numpy.ones(len(msd))])),msd)
+    (x,r,rn,s) = np.linalg.lstsq(np.transpose(np.array([t,np.ones(len(msd))])),msd)
 
     if(make_plot):
         fig = plots.tac_figure('t [ms]','msd [px^2]','msd and fit')
@@ -175,7 +175,7 @@ def _dilute_D_to_rad(D,T):
     print (T,nu*1000)
     D = D*(10**-12)                     # ([m])^2/[s]
     
-    r = (k * T)/(6 * numpy.pi * nu * D)
+    r = (k * T)/(6 * np.pi * nu * D)
 
     return r*(10**6)
 
@@ -196,7 +196,7 @@ def _nu(T):
     if T> K_max or T< K_min:
         raise Exception("out side of validity range")
 
-    return numpy.exp(A + B/(C + (T)))
+    return np.exp(A + B/(C + (T)))
 
     
     
