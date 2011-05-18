@@ -43,8 +43,8 @@ def fun_decay_exp_inv_dr_gen(r0):
     """ d(C/r exp(- (r-r_0)/a) cos(K(r)+phi_0) + b)/dr
     evaluated at r.  p = (a,K,C,phi_0)"""
     def ret_fun(p,r):
-        return (p[2] /( r-p[3])) * np.exp(-(r-r0)/p[0]) * np.cos(p[1]*(r - p[3]))*\
-               -1*(1/p[0] + 1/r + p[1]* np.tan(p[1] * r + p[3]))
+        return (p[2] /( r-p[3])) * np.exp(-(r-r0)/p[0]) * np.sin(p[1]*(r - p[3]))*\
+               -1*(1/p[0] + 1/r + p[1]/ np.tan(p[1] * (r - p[3])))
 
     return ret_fun
 
