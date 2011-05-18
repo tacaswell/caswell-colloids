@@ -615,8 +615,14 @@ def tmp_series_gn2D(comp_list,conn,**kwargs):
     return peaks
 
 
-def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
+def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**kwargs):
     '''Plots a single g(r) plot with an inset of the higher peaks '''
+     
+    if 'r0' in kwargs:
+        r_0 = kwargs['r0']
+        del kwargs['r0']
+    else:
+        r_0 = 1.8
 
     res = conn.execute("select comp_key,dset_key from gofr where comp_key = ?",comp_key).fetchone()
     (d_fname,) = conn.execute("select fname from dsets where dset_key = ?",res[1:]).fetchone()
@@ -634,26 +640,46 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None):
     a1.grid(True)
     a1.set_xlabel(r'r [$\mu m$]')
     a1.set_ylabel(r'$g(r) - 1$')
-    if main_lim_max is not None:
-        a1.set_ylim(-1,main_lim_max)
     
 
     a2.step(g.x[1000:],g.y[1000:]-1)
     ## a2.set_xlabel(r'r [$\mu m$]')
     ## a2.set_ylabel(r'G(r) - 1')
+    a2.grid(True)
+    a2.get_yaxis().get_major_formatter().set_powerlimits((2,2))
+    a2.get_yaxis().set_major_locator(matplotlib.ticker.LinearLocator(5))
+
+    a1.set_title((str(res[1]) + ', '
+                 + os.path.basename(d_fname)
+                 + ', %.2f, '%temp
+                 + gen.get_acq_time(res[1],conn)).replace('_','\_'))
+
+    
+    fit,r0 = fit_gofr3(g,r_0,fitting.fun_decay_exp_inv_gen)
+    fit_fun = fitting.fun_decay_exp_inv_gen(r0)
+    
+    x_range = np.arange(r0,np.max(g.x),.01)
+    a1.plot(x_range,fit_fun(fit.beta,x_range)-1,'k-')
+    r_ind = np.argmax(g.x>r0)
+    a1.plot(g.x[r_ind:],fit_fun(fit.beta,g.x[r_ind:])-g.y[r_ind:],'m-')
+    a1.plot(g.x,fit_fun(fit.beta,g.x)-1,'g--')
+    x_range = np.arange(g.x[1000],np.max(g.x),.01)
+    a2.plot(x_range,fit_fun(fit.beta,x_range)-1,'k-')
+    a2.plot(g.x[1000:],fit_fun(fit.beta,g.x[1000:])-g.y[1000:],'m-')
+
+    print 'xi: %.4f'%fit.beta[0]
+    print 'K: %.4f'%(2*np.pi/fit.beta[1])
+    print 'C: %.4f'%fit.beta[2]
+    print 'r*: %.4f'%fit.beta[3]
+
     if inset_lim is None:
         y_lim = np.max(np.abs(a2.get_ylim()))
         a2.set_ylim(-y_lim,y_lim)
     else:
         a2.set_ylim(-inset_lim,inset_lim)
-    a2.grid(True)
-    a2.get_yaxis().get_major_formatter().set_powerlimits((2,2))
-    a2.get_yaxis().set_major_locator(matplotlib.ticker.LinearLocator(5))
-
-    a1.set_title(str(res[1]) + ', '
-                 + os.path.basename(d_fname)
-                 + ', %.2f, '%temp
-                 + gen.get_acq_time(res[1],conn))
+    
+    if main_lim_max is not None:
+        a1.set_ylim(-1,main_lim_max)
     
     plots.non_i_plot_stop(istatus)
 
@@ -671,11 +697,14 @@ def tmp_series_fit_plots(comp_list,conn,**kwargs):
         T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
         del kwargs['Tc']
         x_lab = r'$\phi/\phi^*$'
-        
     else:
         T_conv_fun = lambda x:x
         x_lab = 'T [C]'
-        
+    if 'r0' in kwargs:
+        r_0 = kwargs['r0']
+        del kwargs['r0']
+    else:
+        r_0 = 1.8
 
     
     res = [conn.execute("select comp_key,fout " +
@@ -692,22 +721,22 @@ def tmp_series_fit_plots(comp_list,conn,**kwargs):
     print temps
     
     gofrs = [get_gofr2D(r[0],conn) for r in res]
-    fits = [fit_gofr3(g,1.8,fitting.fun_decay_exp_inv_gen) for g in gofrs]
+    fits = [fit_gofr3(g,r_0,fitting.fun_decay_exp_inv_gen) for g in gofrs]
     fits,r0s = zip(*fits)
     
     istatus = plots.non_i_plot_start()
 
     fig_xi = plots.tac_figure(x_lab,r'fitting parameters [$\mu m$]','Fitting parameters') 
 
-    print [2*np.pi/p.beta[1] for p in fits ]
-    
+    print [p.beta[0] for p in fits ]
+     
     fig_xi.draw_line(T_conv_fun(temps),[p.beta[0] for p in fits ],
                     marker='x',label=r'$\xi$')
     fig_xi.draw_line(T_conv_fun(temps),[(np.pi*2)/p.beta[1] for p in fits ],
                     marker='x',label=r'$K$')
     fig_xi.draw_line(T_conv_fun(temps),[p.beta[2] for p in fits ],
                     marker='x',label=r'$C$')
-    fig_xi.draw_line(T_conv_fun(temps),[p.beta[4] for p in fits ],
+    fig_xi.draw_line(T_conv_fun(temps),[p.beta[3] for p in fits ],
                     marker='x',label=r'$r^*$')
     fig_xi.draw_line(T_conv_fun(temps),r0s,
                     marker='x',label=r'$r_0$')
@@ -1427,7 +1456,7 @@ def fit_gofr2(gofr,r0,func,p0=(1,7,2,0,1)):
     
     return fitting.fit_curve(gofr.x,gofr.y,p0,func)
 
-def fit_gofr3(gofr,r0,gen_func,p0=(1,7,2,0,.5)):
+def fit_gofr3(gofr,r0,gen_func,p0=(2,7,1,.7)):
     (gofr,r0) = _trim_gofr(gofr,r0)
 
     return fitting.fit_curve(gofr.x,gofr.y,p0,gen_func(r0)),r0
