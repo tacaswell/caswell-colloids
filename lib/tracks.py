@@ -45,7 +45,7 @@ def extract_all_tracks(track_comp_key,conn,min_track_len):
     # make sure track id is valid
     # extract comp_id
     (fin,dset_key) = conn.execute("select fout,dset_key from comps where\
-    function='tracking' and comp_key=?",
+    function='tracking' and comp_key=?",eu
                                   (track_comp_key,)).fetchone()
     (d_temp,) = conn.execute("select temp from dsets where key = ?",
                              (dset_key,)).fetchone()
@@ -181,3 +181,85 @@ def _extract_tracks(F,start_plane,start_indx,iden_key,track_key):
 
 
     
+def population_sort_tracks(track_key,conn,frame_start,frame_step, cut_off):
+    """This function takes in a track_key, a connection, and a displacement cut off.
+
+
+    Three lists are return: two lists of tuples that pair initial
+    position, final position, and displacement of each track that is
+    present in frame frame_start and lasts until at least frame_start
+    + frame_step corresponding to above and below the cut off.
+
+    A list of the particles that are present in frame_start and do not
+    last long enough is ruterns"""
+    
+    # defs
+    short_list = []
+    long_list = []
+    die_list = []
+    
+    # sql stuff
+    (iden_key,fout) = conn.execute("select iden_key,fout from tracking inner join comps on tracking.comp_key = comps.comp_key where " +
+                                  "tracking.comp_key = ?",    
+                                   track_key).fetchone()
+    
+    # open file
+    F = h5py.File(fout,'r')
+    try:
+        # extract the initial position data
+        frame_tmp = F[ff(frame_start)]
+        init_pos = zip(frame_tmp[fd('x',iden_key)][:],
+                      frame_tmp[fd('y',iden_key)][:],
+                      )
+        init_next_part = frame_tmp[fd('next_part',track_key[0])][:]
+        del frame_tmp
+        frame_tmp = F[ff(frame_start + frame_step)]
+        # extract the final position data
+        final_pos = zip(frame_tmp[fd('x',iden_key)][:],
+                        frame_tmp[fd('y',iden_key)][:])
+        del frame_tmp
+        
+        # extract the next_particle data from all the frames between the two
+        next_part = []
+        for j in range(0,frame_step-1):
+            next_part.append(F[ff(frame_start + j + 1)][fd('next_part',track_key[0])][:])
+            
+            
+        pass
+    finally:
+        # make sure we clean up the hdf stuff
+        F.close()
+        print 'cleaned up'
+        del F
+    # walk along tracks to sort in to lists
+    for pos,nxt_p in zip(init_pos,init_next_part):
+        die_flag = False
+        for j in range(0,frame_step-1):
+            if nxt_p == -1:
+                die_flag = True
+                break
+            nxt_p = next_part[j][nxt_p]
+        if die_flag or nxt_p ==-1:
+            die_list.append(pos)
+            continue
+
+        fn_pos = final_pos[nxt_p]
+        sq_disp = np.sum((np.array(pos) - np.array(fn_pos))**2)
+        if sq_disp > cut_off:
+            long_list.append((pos,fn_pos,sq_disp))
+        else:
+            short_list.append((pos,fn_pos,sq_disp))
+        if sq_disp > 100000:
+            print pos,fn_pos,nxt_p
+    
+    return short_list,long_list,die_list
+
+def plot_population(short_list,long_list,dead_list):
+    """function do deal with plotting the results of population_sort_tracks """
+    fig = plt.figure()
+    i,j,d = zip(*short_list)
+    ax = fig.gca()
+    ax.scatter(*zip(*i),s=10,c='r')
+    
+    i,j,d = zip(*long_list)
+    ax.scatter(*zip(*i))
