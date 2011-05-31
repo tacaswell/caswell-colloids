@@ -21,6 +21,7 @@ import plots
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.collections import EllipseCollection
 import itertools
 import general as gen
 from general import ff
@@ -234,32 +235,80 @@ def population_sort_tracks(track_key,conn,frame_start,frame_step, cut_off):
     # walk along tracks to sort in to lists
     for pos,nxt_p in zip(init_pos,init_next_part):
         die_flag = False
+        if nxt_p == -1:
+            continue
         for j in range(0,frame_step-1):
+            nxt_p = next_part[j][nxt_p]
             if nxt_p == -1:
                 die_flag = True
                 break
-            nxt_p = next_part[j][nxt_p]
-        if die_flag or nxt_p ==-1:
+            
+        if die_flag:
             die_list.append(pos)
             continue
 
         fn_pos = final_pos[nxt_p]
-        sq_disp = np.sum((np.array(pos) - np.array(fn_pos))**2)
-        if sq_disp > cut_off:
-            long_list.append((pos,fn_pos,sq_disp))
+        disp = np.array(pos) - np.array(fn_pos)
+        
+        if np.abs(disp[0]) > cut_off or np.abs(disp[1]) > cut_off:
+            long_list.append((pos,fn_pos))
         else:
-            short_list.append((pos,fn_pos,sq_disp))
-        if sq_disp > 100000:
-            print pos,fn_pos,nxt_p
-    
+            short_list.append((pos,fn_pos))
+            
     return short_list,long_list,die_list
 
 def plot_population(short_list,long_list,dead_list):
     """function do deal with plotting the results of population_sort_tracks """
     fig = plt.figure()
-    i,j,d = zip(*short_list)
-    ax = fig.gca()
-    ax.scatter(*zip(*i),s=10,c='r')
     
-    i,j,d = zip(*long_list)
-    ax.scatter(*zip(*i))
+    ax = fig.gca()
+    ax.set_aspect('equal')
+
+    # plot the lost particles 
+    ec = EllipseCollection(
+        9,
+        9,
+        0,
+        units='x',
+        offsets=np.vstack(dead_list),
+        transOffset=ax.transData,
+        facecolors='m',
+        edgecolors='m'
+        )
+      
+    ax.add_collection(ec)
+    
+    # plot less mobile particles
+    i,j = zip(*short_list)
+    ec = EllipseCollection(
+        9,
+        9,
+        0,
+        units='x',
+        offsets=np.vstack(i),
+        transOffset=ax.transData,
+        facecolors='b',
+        edgecolors='b'
+        )
+      
+    ax.add_collection(ec)
+    ax.quiver(*zip(*[t[0]+t[1] for t in  zip(i,[(jj[0]-ii[0],jj[1]-ii[1]) for jj,ii in zip(i,j)])]),
+              color='r',scale_units='xy',scale=1,angles='xy')
+    
+    
+    # plot more mobile particles 
+    i,j = zip(*long_list)
+    ec = EllipseCollection(
+        9,
+        9,
+        0,
+        units='x',
+        offsets=np.vstack(i),
+        transOffset=ax.transData,
+        facecolors='g',
+        edgecolors='g')
+    
+    ax.add_collection(ec)
+    
+    ax.quiver(*zip(*[t[0]+t[1] for t in  zip(i,[(jj[0]-ii[0],jj[1]-ii[1]) for jj,ii in zip(i,j)])]),
+              color='k',scale_units='xy',scale=1,angles='xy')
