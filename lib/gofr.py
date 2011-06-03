@@ -617,7 +617,16 @@ def tmp_series_gn2D(comp_list,conn,**kwargs):
 
 def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**kwargs):
     '''Plots a single g(r) plot with an inset of the higher peaks '''
-     
+    if 'Tc' in kwargs:
+        T_conv_fun = T_to_phi_factory(kwargs['Tc'],linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        x_lab = r'$\phi/\phi^*$'
+        
+    else:
+        T_conv_fun = lambda x:x
+        x_lab = 'T [C]'
+        
+
     if 'r0' in kwargs:
         r_0 = kwargs['r0']
         del kwargs['r0']
@@ -1056,7 +1065,13 @@ def make_gofr_by_plane_plots(comp,conn,ax=None,*args,**kwargs):
         (fig,ax) = plots.set_up_plot()
     else:
         fig = ax.get_figure()
-    
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        xlab = r'$\phi^\prime$'
+    else:
+        T_conv_fun = lambda x:x
+        xlab = 'T[C]'
     gc = get_gofr_by_plane_cps(comp,conn)
     temps = get_gofr_by_plane_tmp(comp,conn)
     dset = conn.execute("select dset_key from gofr_by_plane where comp_key = ?",(comp,)).fetchone()[0]
@@ -1065,15 +1080,13 @@ def make_gofr_by_plane_plots(comp,conn,ax=None,*args,**kwargs):
     wind = 30
     max_indx = [np.argmax(g.y[5:])+5 for g in gc]
     betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
-    plane_num = range(0,len(betas))
-    plane_num = temps
-    ax.plot(plane_num,np.array([b.beta[2] for b in betas])-1,'x',*args,**kwargs)
-    #ax.plot(plane_num,np.array([np.max(g.y) for g in gc])-1,'x')
-    ax.set_xlabel('comp index')
+    ax.plot(T_conv_fun(np.array(temps)),np.array([b.beta[2] for b in betas])-1,'x',*args,**kwargs)
+    
+    ax.set_xlabel(xlab)
     ax.set_ylabel(r'$g_1-1$')
     ax.set_ylim([0, 3])
     #    ax.set_title("dset: " + str(dset) + " temp: " + str(temp) + "C  dtype:" + dtype)
-    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
+    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1].replace('_','\_'))
     
 
     (fig,ax) = plots.set_up_plot()
@@ -1081,7 +1094,7 @@ def make_gofr_by_plane_plots(comp,conn,ax=None,*args,**kwargs):
     ax.plot(plane_num,temps)
     ax.set_xlabel('comp index')
     ax.set_ylabel(r'temperature')
-    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1])
+    ax.set_title("dset: " + str(dset) + " " + fname.split('/')[-1].replace('_','\_'))
 
     # (fig,ax) = plots.set_up_plot()
     # [ax.plot(g.x,g.y) for g in gc]
