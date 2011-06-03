@@ -1325,10 +1325,10 @@ def plot_sofq_series(comp_list,conn,cmap=None):
     
         
     
-def get_max_sofq_loc(comp_list,conn):
-    
+def get_max_sofq_val(comp_list,conn):
+    """Returns the maximum value of s(q)"""
     res = [conn.execute("select comp_key,fout\
-    from comps where comp_key = ?",comp_key).fetchone()
+    from gofr where comp_key = ?",comp_key).fetchone()
            for comp_key in comp_list]
     
     
@@ -1342,11 +1342,8 @@ def get_max_sofq_loc(comp_list,conn):
         
     q_vec = 2*np.pi *np.linspace(.2,5 ,500)
 
-    S = [compute_sofq(gofr,rho*.25,q_vec) for gofr,rho in g_r]
-    
-
-    
-    #    return [q_vec[np.argmax(s)]/(2*np.pi) for s in S],temps
+    S = [compute_sofq(gofr,rho,q_vec) for gofr,rho in g_r]
+        
     return [np.max(s)for s in S],temps
     
 def compute_sofq(gofr,rho,q_vec):
