@@ -1361,7 +1361,7 @@ def compute_sofq(gofr,rho,q_vec):
     q_vec : an iterable of q values to compute the transform at
     '''
 
-
+    
     r = gofr.x
     h = gofr.y-1
     dr = np.diff(r)
@@ -1371,7 +1371,7 @@ def compute_sofq(gofr,rho,q_vec):
 
 
     
-    S = [ 1 + (rho / q) * np.sum(r * np.sin(q*r) * h *dr) for q in q_vec]
+    S = [ 1 + (rho / q) *4* np.pi * np.sum(r * np.sin(q*r) * h *dr) for q in q_vec]
 
     return S
 
@@ -1399,7 +1399,6 @@ def plot_s1_series(c_lst,conn,ax=None,label=None,**kwargs):
     
     plts.draw()
 
-    
     
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
