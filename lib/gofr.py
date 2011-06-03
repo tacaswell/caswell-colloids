@@ -1330,13 +1330,11 @@ def get_max_sofq_val(comp_list,conn):
     res = [conn.execute("select comp_key,fout\
     from gofr where comp_key = ?",comp_key).fetchone()
            for comp_key in comp_list]
-    
-    
-    
+       
     
     temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     
-
+    
     g_r = [get_gofr2D_rho(r[0],conn) for r in res]
     
         
@@ -1345,10 +1343,12 @@ def get_max_sofq_val(comp_list,conn):
     S = [compute_sofq(gofr,rho,q_vec) for gofr,rho in g_r]
         
     return [np.max(s)for s in S],temps
+
+
     
 def compute_sofq(gofr,rho,q_vec):
     '''Computes the structure factor from the 
-    see PRE 81 041305
+    see PRUE 81 041305
 
     s(q) = 1 + \rho \tilde{h}(q)
     \tilde{h}(q) = (2 \pi)^{d/2} \int_0^\infty r^{d-1} h(r) \frac{J_{d/2}}{(qr)^{d/2}} dr
@@ -1398,6 +1398,80 @@ def plot_s1_series(c_lst,conn,ax=None,label=None,**kwargs):
         ax.legend(loc=0)
     
     plts.draw()
+
+def plot_compressibility(comp_list,conn,ax=None,label=None,**kwargs):
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        xlab = r'$\phi^\prime$'
+    else:
+        T_conv_fun = lambda x:x
+        xlab = 'T[C]'
+    ylab = r'$s_1-1$'
+
+    res = [conn.execute("select comp_key,fout\
+    from gofr where comp_key = ?",comp_key).fetchone()
+           for comp_key in comp_list]
+       
+    
+    T = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+    
+    
+    g_r = [get_gofr2D_rho(r[0],conn) for r in res]
+    
+      
+    
+
+    C = [compute_compressibility(gofr,rho) for gofr,rho in g_r]
+       
+        
+
+    if ax is None:
+        fig,ax = plots.set_up_plot()
+        plots.add_labels(ax,'',xlab,ylab)
+        
+    ax.plot(T_conv_fun(np.array(T)),C,'x-',label=label)
+    
+    if label is not None:
+        ax.legend(loc=0)
+    
+    plts.draw()
+
+    
+def compute_compressibility(gofr,rho):
+    """
+    see PRE 81 041305
+
+    s(q) = 1 + \rho \tilde{h}(q)
+    \tilde{h}(q) = (2 \pi)^{d/2} \int_0^\infty r^{d-1} h(r) \frac{J_{d/2}}{(qr)^{d/2}} dr
+
+    which for a 3D sample,
+
+    s(q) = 1 + \rho 4\pi \int_0^\infty \frac{r}{k} \sin(kr) h(r)
+
+    s(0) = 1 ) \rho 4\pi \int_0^\infty r^2 h(r)
+
+    taking the limit as k->0
+    
+    gofr : a cord_pair object
+    rho : density
+    """
+    
+    r = gofr.x
+    h = gofr.y-1
+    dr = np.diff(r)
+    dr = np.append(dr,np.mean(dr))
+    # kludge to fix issue with doubled particles
+    h[0:5] = 0
+
+
+    
+    c = 1 + (rho ) * np.sum(r * r * h *dr)*4*np.pi
+
+    
+    ## plts.figure()
+    ## plts.plot( (rho ) * r * r * h *dr *4*np.pi)
+    return c
 
     
 def make_sofq_3D_plot(key,conn,Q):
