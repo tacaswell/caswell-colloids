@@ -22,6 +22,7 @@ import re
 
 import h5py
 import matplotlib
+import matplotlib.cm as cm
 import matplotlib.pyplot as plts
 import numpy as np
 import scipy.odr as sodr
@@ -1269,7 +1270,7 @@ def make_2dv3d_plot(key,conn,fname = None):
 #s(q)#
 ######
 
-def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
+def plot_sofq(comp_key,conn,ax=None,cmap=None):
     
     r = conn.execute("select comp_key,fout\
     from gofr where gofr.comp_key = ?",(comp_key,)).fetchone()
@@ -1290,37 +1291,44 @@ def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
     
     q_vec = 2*np.pi *np.linspace(.2,5 ,500)
 
+    # kludge to deal with erroneous particles 
+    gofr.y[0:5] = 0
+    
+
     S = compute_sofq(gofr,rho,q_vec)
 
-    if fig_sofq is None:
-        if length is None:
-            fig_sofq = plots.tac_figure(r'$k\sigma/2\pi$',r'$S(k)$','test',cmap=cmap)
-        else:
-            fig_sofq = plots.tac_figure(r'$k\sigma/2\pi$',r'$S(k)$','test',count=length,cmap=cmap)
+    if ax is None:
+        fig,ax = plots.set_up_plot()
+        plots.add_labels(ax,'',r'$k\sigma/2\pi$','$S(k)$')
+        
     
-    fig_sofq.draw_line(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
+    ax.plot(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
     
     
 
-    return fig_sofq
+    return ax
 
 def plot_sofq_series(comp_list,conn,cmap=None):
 
 
-    c0 = comp_list.pop(0)
-    fig = plot_sofq(c0[0],conn,None,len(comp_list)+1,cmap=cmap)
-    for c in comp_list:
-        plot_sofq(c[0],conn,fig)
+    fig,ax = plots.set_up_plot()
+    plots.add_labels(ax,'',r'$k\sigma/2\pi$','$S(k)$')
 
+    count = len(comp_list)
+    cmap = cm.get_cmap('winter')
+    ax.set_color_cycle([cmap(j/(count-1)) for j in range(count)] )
         
-    comp_list.reverse()
-    comp_list.append(c0)
-    comp_list.reverse()
+    for c in comp_list:
+        plot_sofq(c[0],conn,ax)
 
+    ax.legend(loc=0)
+    
+        
+    
 def get_max_sofq_loc(comp_list,conn):
     
     res = [conn.execute("select comp_key,fout\
-    from comps where comps.comp_key = ?",comp_key).fetchone()
+    from comps where comp_key = ?",comp_key).fetchone()
            for comp_key in comp_list]
     
     
