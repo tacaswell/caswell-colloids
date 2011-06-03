@@ -1374,6 +1374,32 @@ def compute_sofq(gofr,rho,q_vec):
     S = [ 1 + (rho / q) * np.sum(r * np.sin(q*r) * h *dr) for q in q_vec]
 
     return S
+
+def plot_s1_series(c_lst,conn,ax=None,label=None,**kwargs):
+    '''Plots the s_1 series on to the given axis '''
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        xlab = r'$\phi^\prime$'
+    else:
+        T_conv_fun = lambda x:x
+        xlab = 'T[C]'
+    ylab = r'$s_1-1$'
+    
+    (s1,T) = get_max_sofq_val(c_lst,conn)
+
+    if ax is None:
+        fig,ax = plots.set_up_plot()
+        plots.add_labels(ax,'',xlab,ylab)
+        
+    ax.plot(T_conv_fun(np.array(T)),np.array(s1)-1,'x-',label=label)
+    ax.set_ylim(bottom=0)
+    if label is not None:
+        ax.legend(loc=0)
+    
+    plts.draw()
+
+    
     
 def make_sofq_3D_plot(key,conn,Q):
     '''From the key plots s(q) as computed from the 3D g(r)'''
