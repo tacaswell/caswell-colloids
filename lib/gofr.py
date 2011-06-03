@@ -1272,7 +1272,7 @@ def make_2dv3d_plot(key,conn,fname = None):
 def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
     
     r = conn.execute("select comp_key,fout\
-    from comps where comps.comp_key = ?",(comp_key,)).fetchone()
+    from gofr where gofr.comp_key = ?",(comp_key,)).fetchone()
     
     
     
@@ -1298,7 +1298,7 @@ def plot_sofq(comp_key,conn,fig_sofq=None,length=None,cmap=None):
         else:
             fig_sofq = plots.tac_figure(r'$k\sigma/2\pi$',r'$S(k)$','test',count=length,cmap=cmap)
     
-    fig_sofq.plot(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
+    fig_sofq.draw_line(pfit.beta[1]*q_vec/(2*np.pi),S,label='%.2f'%temp)
     
     
 
