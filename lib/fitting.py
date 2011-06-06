@@ -103,7 +103,7 @@ def fun_gauss_gauss(p,r):
 ####################
 def fit_curve(x,y,p0,func):
     """Fits y = func(x|p) with the initial parameters of p0.  func
-    must be of the form y = func(x,p).  uses scipy odr code  """
+    must be of the form y = func(p,x).  uses scipy odr code  """
     
     data = sodr.Data(x,y)
     model = sodr.Model(func)
