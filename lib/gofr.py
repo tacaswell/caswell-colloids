@@ -246,6 +246,8 @@ def get_gofr2D_T(comp_num,conn):
     
     
     F.close()
+    # kludge to deal with iden errors
+    gofr[0:3] = 0
     return cord_pairs(bins,gofr),t
 
 def get_gofr2D_rho(comp_num,conn):
@@ -694,7 +696,81 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**
     plots.non_i_plot_stop(istatus)
 
     return f,a1,a2
+
     
+def plot_gofr_diff(comp_key_1,comp_key_2,conn,main_lim_max = None, inset_lim = None,*args,**kwargs):
+    '''Plots a single g(r) plot with an inset of the higher peaks '''
+    if 'Tc' in kwargs:
+        T_conv_fun = T_to_phi_factory(kwargs['Tc'],linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+        x_lab = r'$\phi/\phi^*$'
+        
+    else:
+        T_conv_fun = lambda x:x
+        x_lab = 'T [C]'
+        
+
+    if 'r0' in kwargs:
+        r_0 = kwargs['r0']
+        del kwargs['r0']
+    else:
+        r_0 = 1.8
+
+    def helper(c_k):
+        res = conn.execute("select comp_key,dset_key from gofr where comp_key = ?",c_k).fetchone()
+        return   get_gofr2D_T(res[0],conn)
+    
+    g_1,t_1 = helper(comp_key_1)
+    g_2,t_2 = helper(comp_key_2)
+
+    if len(g_1.x) != len(g_2.x):
+        die
+        return
+
+    istatus = plots.non_i_plot_start()
+    
+    f = plts.figure()
+    #f.set_size_inches(4,4,forward=True)
+    
+    a1 = f.add_axes([.1,.1,.85,.8])
+    a2 = f.add_axes([.505+.055,.575+.01,.38,.28])
+
+    a1.step(g_1.x,g_1.y-g_2.y)
+    a1.step(g_1.x,g_1.y-1,'-')
+    a1.step(g_2.x,g_2.y-1,'--')
+    a1.grid(True)
+    a1.set_xlabel(r'r [$\mu m$]')
+    a1.set_ylabel(r'')
+    
+
+    a2.step(g_1.x[1000:],g_1.y[1000:]-g_2.y[1000:])
+    a2.step(g_1.x[1000:],g_1.y[1000:]-1)
+    a2.step(g_2.x[1000:],g_2.y[1000:]-1)
+    ## ## a2.set_xlabel(r'r [$\mu m$]')
+    ## ## a2.set_ylabel(r'G(r) - 1')
+    a2.grid(True)
+    a2.get_yaxis().get_major_formatter().set_powerlimits((2,2))
+    a2.get_yaxis().set_major_locator(matplotlib.ticker.LinearLocator(5))
+
+    ## a1.set_title((str(res[1]) + ', '
+    ##              + os.path.basename(d_fname)
+    ##              + ', %.2f, '%temp
+    ##              + gen.get_acq_time(res[1],conn)).replace('_','\_'))
+
+    
+    if inset_lim is None:
+        y_lim = np.max(np.abs(a2.get_ylim()))
+        a2.set_ylim(-y_lim,y_lim)
+    else:
+        a2.set_ylim(-inset_lim,inset_lim)
+    
+    if main_lim_max is not None:
+        a1.set_ylim(-1,main_lim_max)
+    
+    plots.non_i_plot_stop(istatus)
+    
+    ## return f,a1,a2
+
 def tmp_series_fit_plots(comp_list,conn,**kwargs):
     """Makes plots for g_1 to g_n
     
