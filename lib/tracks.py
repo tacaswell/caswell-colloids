@@ -16,17 +16,19 @@
 #along with this program; if not, see <http://www.gnu.org/licenses>.
 from __future__ import division
 
-import h5py
-import plots
-import numpy as np
-import matplotlib
-import matplotlib.pyplot as plt
-from matplotlib.collections import EllipseCollection
 import itertools
-import general as gen
-from general import ff
-from general import fd
 
+import h5py
+import matplotlib
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.collections import EllipseCollection
+
+import general as gen
+import img
+import plots
+from general import ff, fd
 
 
 def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
@@ -212,6 +214,7 @@ def population_sort_tracks(track_key,conn,frame_start,frame_step, cut_off):
         init_pos = zip(frame_tmp[fd('x',iden_key)][:],
                       frame_tmp[fd('y',iden_key)][:],
                       )
+        track_id = frame_tmp[fd('track_id',track_key[0])][:]
         init_next_part = frame_tmp[fd('next_part',track_key[0])][:]
         del frame_tmp
         frame_tmp = F[ff(frame_start + frame_step)]
@@ -233,17 +236,16 @@ def population_sort_tracks(track_key,conn,frame_start,frame_step, cut_off):
         print 'cleaned up'
         del F
     # walk along tracks to sort in to lists
-    for pos,nxt_p in zip(init_pos,init_next_part):
+    for pos,nxt_p,tid in zip(init_pos,init_next_part,track_id):
         die_flag = False
-        if nxt_p == -1:
+        if tid == -1:
             continue
         for j in range(0,frame_step-1):
-            nxt_p = next_part[j][nxt_p]
             if nxt_p == -1:
                 die_flag = True
                 break
-            
-        if die_flag:
+            nxt_p = next_part[j][nxt_p]
+        if die_flag or nxt_p == -1:
             die_list.append(pos)
             continue
 
@@ -257,11 +259,12 @@ def population_sort_tracks(track_key,conn,frame_start,frame_step, cut_off):
             
     return short_list,long_list,die_list
 
-def plot_population(short_list,long_list,dead_list):
+def plot_population(short_list,long_list,dead_list,ax=None):
     """function do deal with plotting the results of population_sort_tracks """
-    fig = plt.figure()
-    
-    ax = fig.gca()
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.gca()
+        
     ax.set_aspect('equal')
 
     # plot the lost particles 
@@ -272,7 +275,7 @@ def plot_population(short_list,long_list,dead_list):
         units='x',
         offsets=np.vstack(dead_list),
         transOffset=ax.transData,
-        facecolors='m',
+        facecolors='',
         edgecolors='m'
         )
       
@@ -287,7 +290,7 @@ def plot_population(short_list,long_list,dead_list):
         units='x',
         offsets=np.vstack(i),
         transOffset=ax.transData,
-        facecolors='b',
+        facecolors='',
         edgecolors='b'
         )
       
@@ -305,10 +308,36 @@ def plot_population(short_list,long_list,dead_list):
         units='x',
         offsets=np.vstack(i),
         transOffset=ax.transData,
-        facecolors='g',
+        facecolors='',
         edgecolors='g')
     
     ax.add_collection(ec)
     
     ax.quiver(*zip(*[t[0]+t[1] for t in  zip(i,[(jj[0]-ii[0],jj[1]-ii[1]) for jj,ii in zip(i,j)])]),
               color='k',scale_units='xy',scale=1,angles='xy')
+    return ax
+
+def plot_population_img(conn,frame,track_key,short_list,long_list,dead_list,ax=None):
+    """function do deal with plotting the results of population_sort_tracks """
+    ax = plot_population(short_list,long_list,dead_list)
+    
+    
+    
+    (iden_fname,dset_key,
+     sname,img_fname,ftype) = conn.execute("select fout,dsets.dset_key,sname,fname,ftype "+
+                                           " from tracking inner join dsets on "+
+                                           "dsets.dset_key = tracking.dset_key where comp_key = ?",
+                                           (track_key,)).fetchone()
+    
+    
+    
+    
+    if ftype == 1:
+        im_wrap = img.Stack_wrapper(img_fname)
+        pass
+    elif ftype ==2:
+        im_wrap = img.Series_wrapper(img_fname,'tif')
+        pass
+    img_f = im_wrap.get_frame(frame)
+    ax.imshow(np.flipud(img_f),interpolation='nearest',cmap=cm.gray,alpha=1)
+    
