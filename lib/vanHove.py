@@ -681,7 +681,7 @@ def F_qt_plot(comp_lst,conn,q,wind=5,**kwargs):
         T_conv_fun = lambda x:x
     
 
-    x_lab = r'$\tau$ [ms]'
+    x_lab = r'$\tau$ [S]'
     y_lab = r'$F(q,\tau)$'
 
     fig,ax = plots.set_up_plot()
@@ -695,9 +695,10 @@ def F_qt_plot(comp_lst,conn,q,wind=5,**kwargs):
     
     for vh_comp in comp_lst:
         Fqt,temp,dtime = _F_qt(vh_comp,conn,q,wind)
+        
         Fqt = np.abs(Fqt)
-        time = np.cumsum(dtime * (np.arange(0,len(Fqt))+1))
-        ax.plot(time,Fqt,label='%.2f'%T_conv_fun(temp),color=cm.get_color(temp))
+        time = dtime * (np.arange(0,len(Fqt))+1)
+        ax.plot(time/1000,Fqt,label='%.2f'%T_conv_fun(temp),color=cm.get_color(temp))
 
     ax.legend(loc=0)
 
