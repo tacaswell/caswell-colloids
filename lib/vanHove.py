@@ -115,7 +115,7 @@ def extract_vanHove(c,conn,time_step,count_cut,wind=1,norm=False):
     dtime = g.attrs['dtime']
     max_step = g.attrs['max_step']
     j = int(time_step/dtime)
-    print j
+    
     if j > max_step or j <= 0:
         return np.array([]),np.array([]),0,0,[]
     
@@ -502,7 +502,7 @@ def plot_vanHove_reduction(comp_lst,time_step,conn,fun=None,title=None,wind =1,n
         x_lab = r'$\phi/\phi^*$'
         if title is None:
             title = r'Half width half max vs $\phi/\phi^*$'
-
+    
     else:
         T_conv_fun = lambda x:x
         x_lab = 'T [C]'
@@ -516,13 +516,13 @@ def plot_vanHove_reduction(comp_lst,time_step,conn,fun=None,title=None,wind =1,n
     data.sort(key=lambda x: x[2])
     
     T = np.array([d[2] for d in data])
-    hwhm = np.array([fun(d[0],d[1]) for d in data])
+    hwhm = np.array([fun(d[0]*r_scale,d[1]) for d in data])
     
     print T
     print hwhm
     if ax is None  and fun ==_vh_hwhm:
         ax = plots.set_up_axis(x_lab,'hwhm [$\mu$m]',title)
-    ax.plot(T_conv_fun(T),hwhm*r_scale,'x-',label = '%.1f S'%(time_step/1000),**kwargs)
+    ax.plot(T_conv_fun(T),hwhm,'x-',label = '%.1f S'%(time_step/1000),**kwargs)
         
     return ax
 
@@ -670,7 +670,7 @@ def _vh_msd(edges,count):
     cents = gen.get_bin_centers(edges)
     
     return np.sum(count*(cents**2))/np.sum(count)
-
+    
 def remove_vanHove_computation(comp_key,conn):
     '''Completely removes the computation from the results and the
     database'''
