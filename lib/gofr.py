@@ -1324,7 +1324,7 @@ def plot_sofq_series(comp_list,conn,cmap=None):
     ax.legend(loc=0)
     
         
-    
+
 def get_max_sofq_val(comp_list,conn):
     """Returns the maximum value of s(q)"""
     res = [conn.execute("select comp_key,fout\
@@ -1343,6 +1343,26 @@ def get_max_sofq_val(comp_list,conn):
     S = [compute_sofq(gofr,rho,q_vec) for gofr,rho in g_r]
         
     return [np.max(s)for s in S],temps
+
+
+def get_max_sofq_q(comp_list,conn):
+    """Returns the maximum value of s(q)"""
+    res = [conn.execute("select comp_key,fout\
+    from gofr where comp_key = ?",comp_key).fetchone()
+           for comp_key in comp_list]
+       
+    
+    temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
+    
+    
+    g_r = [get_gofr2D_rho(r[0],conn) for r in res]
+    
+        
+    q_vec = 2*np.pi *np.linspace(.2,5 ,500)
+
+    S = [compute_sofq(gofr,rho,q_vec) for gofr,rho in g_r]
+        
+    return [q_vec[np.argmax(s)] for s in S],temps
 
 
     
@@ -1407,7 +1427,7 @@ def plot_compressibility(comp_list,conn,ax=None,label=None,**kwargs):
     else:
         T_conv_fun = lambda x:x
         xlab = 'T[C]'
-    ylab = r'$s_1-1$'
+    ylab = r'$KT\kappa$'
 
     res = [conn.execute("select comp_key,fout\
     from gofr where comp_key = ?",comp_key).fetchone()

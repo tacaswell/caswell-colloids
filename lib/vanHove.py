@@ -670,6 +670,60 @@ def _vh_msd(edges,count):
     cents = gen.get_bin_centers(edges)
     
     return np.sum(count*(cents**2))/np.sum(count)
+
+def F_qt_plot(comp_lst,conn,q,wind=5,**kwargs):
+    """Plots F(q,\tau)"""
+    if 'Tc' in kwargs:
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
+        del kwargs['Tc']
+    
+    else:
+        T_conv_fun = lambda x:x
+    
+
+    x_lab = r'$\tau$ [ms]'
+    y_lab = r'$F(q,\tau)$'
+
+    fig,ax = plots.set_up_plot()
+    plots.add_labels(ax,'',x_lab,y_lab)
+        
+        
+    
+    cm = plots.color_mapper(27,32)
+    
+    
+    
+    for vh_comp in comp_lst:
+        Fqt,temp,dtime = _F_qt(vh_comp,conn,q,wind)
+        Fqt = np.abs(Fqt)
+        time = np.cumsum(dtime * (np.arange(0,len(Fqt))+1))
+        ax.plot(time,Fqt,label='%.2f'%T_conv_fun(temp),color=cm.get_color(temp))
+
+    ax.legend(loc=0)
+
+    ax.set_ylim(0,1)
+    
+def _F_qt(vh_comp,conn,q,wind=5):
+    """implements F(q,\tau) as described in the zexin nature paper """
+
+    # get the van Hove data
+    (vanHove,temp,dtime) = extract_vanHove_all(vh_comp,conn,wind)
+    
+    Fqt = [_Fqt_comp(vh,q) for vh in vanHove]
+
+    return Fqt,temp,dtime
+    
+    
+    
+
+def _Fqt_comp(vh,q):
+    """worker function to do the F(q,t) computation """
+    r_scale = 6.45/60
+    edges,count,x_lim = vh
+    # make sure that vh is normalized
+    count = count/np.sum(count)
+
+    return np.sum(count * np.exp(1j*q*edges*r_scale))
     
 def remove_vanHove_computation(comp_key,conn):
     '''Completely removes the computation from the results and the
