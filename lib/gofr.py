@@ -621,7 +621,7 @@ def tmp_series_gn2D(comp_list,conn,**kwargs):
 def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**kwargs):
     '''Plots a single g(r) plot with an inset of the higher peaks '''
     if 'Tc' in kwargs:
-        T_conv_fun = T_to_phi_factory(kwargs['Tc'],linear_T_to_r_factory(-.011,0.848))
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
         del kwargs['Tc']
         x_lab = r'$\phi/\phi^*$'
         
@@ -663,7 +663,7 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**
 
     a1.set_title((str(res[1]) + ', '
                  + os.path.basename(d_fname)
-                 + ', %.2f, '%temp
+                 + ', %.2f, '%T_conv_fun(temp)
                  + gen.get_acq_time(res[1],conn)).replace('_','\_'))
 
     
@@ -701,7 +701,7 @@ def plot_gofr_inset(comp_key,conn,main_lim_max = None, inset_lim = None,*args,**
 def plot_gofr_diff(comp_key_1,comp_key_2,conn,main_lim_max = None, inset_lim = None,*args,**kwargs):
     '''Plots a single g(r) plot with an inset of the higher peaks '''
     if 'Tc' in kwargs:
-        T_conv_fun = T_to_phi_factory(kwargs['Tc'],linear_T_to_r_factory(-.011,0.848))
+        T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
         del kwargs['Tc']
         x_lab = r'$\phi/\phi^*$'
         
@@ -735,9 +735,9 @@ def plot_gofr_diff(comp_key_1,comp_key_2,conn,main_lim_max = None, inset_lim = N
     a1 = f.add_axes([.1,.1,.85,.8])
     a2 = f.add_axes([.505+.055,.575+.01,.38,.28])
 
-    a1.step(g_1.x,g_1.y-g_2.y)
-    a1.step(g_1.x,g_1.y-1,'-')
-    a1.step(g_2.x,g_2.y-1,'--')
+    a1.step(g_1.x,g_1.y-g_2.y,label='diff')
+    a1.step(g_1.x,g_1.y-1,'-',label='%.2f'%T_conv_fun(t_1))
+    a1.step(g_2.x,g_2.y-1,'--',label='%.2f'%T_conv_fun(t_2))
     a1.grid(True)
     a1.set_xlabel(r'r [$\mu m$]')
     a1.set_ylabel(r'')
@@ -766,7 +766,7 @@ def plot_gofr_diff(comp_key_1,comp_key_2,conn,main_lim_max = None, inset_lim = N
     
     if main_lim_max is not None:
         a1.set_ylim(-1,main_lim_max)
-    
+    a1.legend(loc=4)
     plots.non_i_plot_stop(istatus)
     
     ## return f,a1,a2
