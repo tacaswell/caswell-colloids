@@ -75,16 +75,16 @@ class Series_wrapper:
         return np.reshape(im.getdata(),img_sz)
 
 
-def plot_centers_simple(iden_key,conn,frame):
+def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
     ''' Function that does all of the look up for you '''
     
-    (iden_fname,dset_key) = conn.execute("select fout,dset_key from iden where comp_key = ?",
-                                         (iden_key,)).fetchone()
+    (iden_fname,dset_key,
+     sname,img_fname,ftype) = conn.execute("select fout,dset_key,sname,fname,ftype "+
+                                           " from iden inner join dsets on "+
+                                           "dsets.dset_key = iden.dset_key where comp_key = ?",
+                                           (iden_key,)).fetchone()
     
-    (sname,img_fname,ftype) = conn.execute("select sname,fname,ftype from dsets where dset_key =?",
-                                           (dset_key,)).fetchone()
     
-
     if ftype == 1:
         im_wrap = Stack_wrapper(img_fname)
         pass
@@ -93,13 +93,13 @@ def plot_centers_simple(iden_key,conn,frame):
         pass
     F = h5py.File(iden_fname,'r')
 
-    plot_centers(F,im_wrap,frame,iden_key)
+    plot_centers(F,im_wrap,frame,iden_key,ax,alpha)
 
     F.close()
     del F
 
 
-def plot_centers(F,s_wrapper,frame,comp_key):
+def plot_centers(F,s_wrapper,frame,comp_key,ax=None,alpha=None):
     '''Function that automates some of the extraction steps '''
 
     x,y = extract_centers(F,frame,comp_key)
@@ -108,7 +108,7 @@ def plot_centers(F,s_wrapper,frame,comp_key):
     _plot_centers(img,x,y)
 
     
-def _plot_centers(img,x,y):
+def _plot_centers(img,x,y,ax=None,alpha=None):
     '''img_wrapper is assumed to be any object that implements
     get_frame(j).
 
@@ -136,16 +136,17 @@ def _plot_centers(img,x,y):
     istatus = non_i_plot_start()
     # this turns off interactive plotting (makes it go a bit faster,
     # not really important here, but habit from other code
-    
-    fig = plt.figure()
-    ax = fig.add_axes([.1,.1,.8,.8])
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_axes([.1,.1,.8,.8])
+        
     ax.hold(True)
     # this flipud is here as an artifact of a mis-matched broken
     # symmetry and because for reason's I do not understand tiff's
     # store images last row first, and my center finding code reads
     # the lines in in order.  I should change my code, but I have too
     # much other stuff written around it now for it to be worth 'fixing'
-    ax.imshow(np.flipud(img),interpolation='nearest',cmap=cm.gray)
+    ax.imshow(np.flipud(img),interpolation='nearest',cmap=cm.gray,alpha=alpha)
     ax.plot(x,y,'k.')
 
     non_i_plot_stop(istatus)
