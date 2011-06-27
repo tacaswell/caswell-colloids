@@ -518,6 +518,46 @@ def plot_with_fitting(g_key,conn):
 
 
 
+def peak_locations(comp,conn,ax,**kwargs):
+    """
+    Plots the peak locations for the given computation
+    """
+
+ 
+
+    
+    res = conn.execute("select comp_key,fout " + 
+                       "from gofr where comp_key = ?",comp).fetchone()
+          
+
+    
+    
+    
+    
+    gofr = get_gofr2D(res[0],conn) 
+    fit,r0= fit_gofr3(gofr,2.1,fitting.fun_decay_exp_inv_gen)
+    
+    peaks = find_peaks_fit(gofr,fitting.fun_decay_exp_inv_dr_gen(r0),fit.beta)
+        
+
+
+    
+    istatus = plots.non_i_plot_start()
+    
+    # make plot for trough locations
+    
+    leg_strs = []
+    leg_hands = []
+    print peaks
+    pk_lst,pk_ht = zip(*peaks[0])
+    print pk_lst
+    tr_lst,tr_ht = zip(*peaks[1])
+    ax.plot(np.arange(len(pk_lst))+1,pk_lst,linestyle='',**kwargs)
+    ax.plot(np.arange(0,len(tr_lst))+1.5,tr_lst,linestyle='',**kwargs)
+    
+    plots.non_i_plot_stop(istatus)
+    
+
 ###########################
 #function of tmp functions#
 ###########################
