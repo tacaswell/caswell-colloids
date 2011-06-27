@@ -18,7 +18,6 @@ from __future__ import division
 
 import h5py
 import lib.img as li
-import lib.static_calc as lsc
 import lib.vanHove as lvh
 import numpy as np
 
@@ -147,7 +146,7 @@ def link_frame_avg(dset_key,conn,frame=25):
     H_lst = []
     # fill list of hash objects
     for j in range(0,len(F_lst)):
-        H_lst.append(lsc.hash_case([1390,1040],10))
+        H_lst.append(hash_case([1390,1040],10))
 
     # fill hash object with particles
     for h,xy in zip(H_lst,xy_lst):
@@ -161,7 +160,7 @@ def link_frame_avg(dset_key,conn,frame=25):
     # does the commutation
     for j in range(0,len(H_lst)):
         for k in range(j+1,len(H_lst)):
-            pairs = lsc.link_dumb(H_lst[j],H_lst[k],3)
+            pairs = link_dumb(H_lst[j],H_lst[k],3)
             res_mean[j][k] = np.mean([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
             res_std[j][k] = np.std([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
             res_hwhm[j][k] = lvh._vh_hwhm(*(np.histogram([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs],1000,new=False)[::-1]))
