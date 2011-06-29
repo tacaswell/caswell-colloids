@@ -666,9 +666,12 @@ def _vh_hwhm(edges,count):
 def _vh_msd(edges,count):
     """Computes the MSD  """
     
+    if len(edges) == len(count)+1:
+        edges = edges[:-1]
+    
     # get bin centers
     cents = gen.get_bin_centers(edges)
-    
+        
     return np.sum(count*(cents**2))/np.sum(count)
 
 def F_qt_plot(comp_lst,conn,q,wind=5,**kwargs):
