@@ -156,6 +156,7 @@ def link_frame_avg(dset_key,conn,frame=25):
     res_std = np.zeros([len(H_lst),len(H_lst)])
     res_mean = np.zeros([len(H_lst),len(H_lst)])
     res_hwhm = np.zeros([len(H_lst),len(H_lst)])
+    res_msd = np.zeros([len(H_lst),len(H_lst)])
 
     # does the commutation
     for j in range(0,len(H_lst)):
@@ -164,7 +165,8 @@ def link_frame_avg(dset_key,conn,frame=25):
             res_mean[j][k] = np.mean([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
             res_std[j][k] = np.std([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
             res_hwhm[j][k] = lvh._vh_hwhm(*(np.histogram([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs],1000,new=False)[::-1]))
-
+            res_msd[j][k] = lvh._vh_msd(*(np.histogram([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs],1000,new=False)[::-1]))
+            
 
     for f in F_lst:
         f.close()
@@ -172,4 +174,4 @@ def link_frame_avg(dset_key,conn,frame=25):
 
     del F_lst
 
-    return res_std,res_mean,res_hwhm
+    return res_std,res_mean,res_hwhm,res_msd
