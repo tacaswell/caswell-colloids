@@ -341,3 +341,33 @@ def plot_population_img(conn,frame,track_key,short_list,long_list,dead_list,ax=N
     img_f = im_wrap.get_frame(frame)
     ax.imshow(np.flipud(img_f),interpolation='nearest',cmap=cm.gray,alpha=1)
     
+def remove_track_comp(comp_key,conn):
+    '''Completely removes a tracking computation'''
+    
+    (fin,) = conn.execute("select fout from tracking where comp_key=?",
+                                  (comp_key,)).fetchone()
+
+    # the order is important to keep the foreign constraints happy
+    conn.execute("delete from tracking where comp_key = ?",(comp_key,))
+    conn.execute("delete from comps where comp_key = ?",(comp_key,))
+    # commit to db, commit before deleting the data as unmarked data is less irritating
+    # than non-existing data
+    conn.commit()
+
+    
+    # open file
+    F = h5py.File(fin,'r+')
+    
+    for group in F.keys():
+        if group[:5] == 'frame':
+            del F[group][fd('prev_part',comp_key)]
+            del F[group][fd('next_part',comp_key)]
+            del F[group][fd('track_id',comp_key)]
+    for pram in F['parameters'].keys():
+        if int(pram.split('_')[-1]) == comp_key:
+            del F['parameters'][pram]
+    # delete the top level 
+    del F[fd('tracking',comp_key)]
+    
+    F.close()
+    del F
