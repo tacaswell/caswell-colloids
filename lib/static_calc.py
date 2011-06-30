@@ -161,11 +161,19 @@ def link_frame_avg(dset_key,conn,frame=25):
     # does the commutation
     for j in range(0,len(H_lst)):
         for k in range(j+1,len(H_lst)):
-            pairs = link_dumb(H_lst[j],H_lst[k],3)
+            pairs = link_dumb(H_lst[j],H_lst[k],1)
             res_mean[j][k] = np.mean([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
             res_std[j][k] = np.std([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs])
-            res_hwhm[j][k] = lvh._vh_hwhm(*(np.histogram([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs],1000,new=False)[::-1]))
-            res_msd[j][k] = lvh._vh_msd(*(np.histogram([s[0]-e[0] for (s,e) in pairs] + [s[1]-e[1] for (s,e) in pairs],1000,new=False)[::-1]))
+            res_hwhm[j][k] = lvh._vh_hwhm(*(
+                np.histogram(
+                    [s[0]-e[0] for (s,e) in pairs] +
+                    [s[1]-e[1] for (s,e) in pairs],
+                    1000)[::-1]))
+            res_msd[j][k] = lvh._vh_msd(*(
+                np.histogram(
+                    [s[0]-e[0] for (s,e) in pairs] +
+                    [s[1]-e[1] for (s,e) in pairs],
+                    1000)[::-1]))
             
 
     for f in F_lst:
