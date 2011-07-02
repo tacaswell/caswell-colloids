@@ -29,7 +29,7 @@ import general as gen
 import img
 import plots
 from general import ff, fd
-
+import static_calc as lsc
 
 def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
     """starting with particle part_num in frame_num extracts the path
@@ -340,7 +340,100 @@ def plot_population_img(conn,frame,track_key,short_list,long_list,dead_list,ax=N
         pass
     img_f = im_wrap.get_frame(frame)
     ax.imshow(np.flipud(img_f),interpolation='nearest',cmap=cm.gray,alpha=1)
+
+def coarse_grain(track_key,conn,frame_start,forward_step,grid_size):
+    """Coarse grains tracking data to detect anisotropic drift """
     
+    # sql stuff
+    (iden_key,fout) = conn.execute("select iden_key,fout from tracking inner join comps on tracking.comp_key = comps.comp_key where " +
+                                  "tracking.comp_key = ?",    
+                                   track_key).fetchone()
+    
+    
+    
+    # open file
+    F = h5py.File(fout,'r')
+    
+    # extract the data dimensions
+    dims = F.attrs['dims'][:]
+    hash_dims = dims//grid_size +1
+    # define a local has function
+    def hash_fun(x,y):
+        '''Local hash function '''
+        return int(x//grid_size + (y//grid_size )*hash_dims[0])
+
+
+    # set up data structures
+        
+    cg_vectors = [np.array([0,0]) for i in range(0,hash_dims.prod())]
+    cg_count = np.zeros(hash_dims.prod())
+    
+    try:
+        # extract all of the relevant data
+        start_frame = F[ff(frame_start)]
+
+        init_pos = zip(start_frame[fd('x',iden_key)][:],
+                       start_frame[fd('y',iden_key)][:],
+                       )
+
+        init_next_part = start_frame[fd('next_part',track_key[0])][:]
+
+        end_frame = F[ff(frame_start+forward_step)]
+        final_pos = zip(end_frame[fd('x',iden_key)][:],
+                       end_frame[fd('y',iden_key)][:],
+                       )
+        
+        next_part = []
+        for j in range(0,forward_step-1):
+            frame_tmp = F[ff(frame_start + j + 1)]
+            next_part.append(frame_tmp[fd('next_part',track_key[0])][:])
+            del frame_tmp
+        drift_val = (start_frame.attrs[fd('cumulative_displacement',track_key[0])][:]
+                     - end_frame.attrs[fd('cumulative_displacement',track_key[0])][:])
+        del start_frame
+        del end_frame
+    finally:
+        # clean up hdf
+        F.close()
+        del F
+
+    # loop over particles in start frame
+    for pos,nxt_p in zip(init_pos,init_next_part):
+        die_flag = False
+        if nxt_p == -1:
+            continue
+        for j in range(0,forward_step-1):
+            if nxt_p == -1:
+                die_flag = True
+                break
+            nxt_p = next_part[j][nxt_p]
+        if die_flag or nxt_p == -1:
+            continue
+
+        fn_pos = final_pos[nxt_p]
+        disp =  np.array(fn_pos) - np.array(pos)
+        n = hash_fun(*pos)
+        try:
+            cg_vectors[n] = cg_vectors[n]  + disp
+            cg_count[n] += 1
+        except Exception:
+            print n
+            
+            
+            
+    # average the vectors
+    cg_avg = [v for (v,c) in zip( cg_vectors,cg_count)]
+    print drift_val
+    print cg_vectors[:10]
+    cg_avg = [(v - drift_val)/c for (v,c) in zip( cg_vectors,cg_count)]
+    print cg_avg[:10]
+    # split up the results
+    u,v = zip(*cg_avg)
+    x,y = np.meshgrid(grid_size*(np.arange(0,hash_dims[0]) + .5),
+                      grid_size*(np.arange(0,hash_dims[1]) + .5))
+    return x,y,u,v,cg_count
+
+
 def remove_track_comp(comp_key,conn):
     '''Completely removes a tracking computation'''
     
