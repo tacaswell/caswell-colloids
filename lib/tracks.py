@@ -425,7 +425,7 @@ def coarse_grain(track_key,conn,frame_start,forward_step,grid_size):
     cg_avg = [v for (v,c) in zip( cg_vectors,cg_count)]
     print drift_val
     print cg_vectors[:10]
-    cg_avg = [(v - drift_val)/c for (v,c) in zip( cg_vectors,cg_count)]
+    cg_avg = [(v )/c - drift_val for (v,c) in zip( cg_vectors,cg_count)]
     print cg_avg[:10]
     # split up the results
     u,v = zip(*cg_avg)
