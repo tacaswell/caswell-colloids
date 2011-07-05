@@ -447,58 +447,68 @@ def coarse_grain_dedrift(track_key,conn,frame_start,forward_step,grid_size):
                                    track_key).fetchone()
     
     
-    
-    # open file
-    F = h5py.File(fout,'r')
-    
-    # extract the data dimensions
-    dims = F.attrs['dims'][:]
-    hash_dims = dims//grid_size +1
-    # define a local has function
-    def hash_fun(x,y):
-        '''Local hash function '''
-        return int(x//grid_size + (y//grid_size )*hash_dims[0])
-
-
-    # set up data structures
-        
-    cg_vectors = [np.array([0,0]) for i in range(0,hash_dims.prod())]
-    cg_count = np.zeros(hash_dims.prod())
-    
     try:
+        # open file
+        F = h5py.File(fout,'r')
+
+        # extract the data dimensions
+        dims = F.attrs['dims'][:]
+        hash_dims = dims//grid_size +1
+        # define a local has function
+        def hash_fun(x,y):
+            '''Local hash function '''
+            return int(x//grid_size + (y//grid_size )*hash_dims[0])
+
+
+        # set up data structures
+
+        cg_vectors = [np.array([0,0]) for i in range(0,hash_dims.prod())]
+        cg_count = np.zeros(hash_dims.prod())
+
+    
         # extract all of the relevant data
-        start_frame = F[ff(frame_start)]
+        try:
+            start_frame = F[ff(frame_start)]
+            end_frame = F[ff(frame_start+forward_step)]
+            
+            init_pos = zip(start_frame[fd('x',iden_key)][:],
+                           start_frame[fd('y',iden_key)][:],
+                           )
 
-        init_pos = zip(start_frame[fd('x',iden_key)][:],
-                       start_frame[fd('y',iden_key)][:],
-                       )
+            init_next_part = start_frame[fd('next_part',track_key[0])][:]
 
-        init_next_part = start_frame[fd('next_part',track_key[0])][:]
-
-        end_frame = F[ff(frame_start+forward_step)]
-        final_pos = zip(end_frame[fd('x',iden_key)][:],
-                       end_frame[fd('y',iden_key)][:],
-                       )
-
+        
+            final_pos = zip(end_frame[fd('x',iden_key)][:],
+                           end_frame[fd('y',iden_key)][:],
+                           )
+            drift_val = (start_frame.attrs[fd('cumulative_displacement',track_key[0])][:]
+                         - end_frame.attrs[fd('cumulative_displacement',track_key[0])][:])
+        except Exception:
+            raise
+        finally:
+            del start_frame
+            del end_frame
+        print F
+        
         next_part = []
         poses = []
         for j in range(0,forward_step):
+            frame_tmp = None
             try:
                 frame_tmp = F[ff(frame_start + j + 1)]
+                next_part.append(frame_tmp[fd('next_part',track_key[0])][:])
+                poses.append(zip(frame_tmp[fd('x',iden_key)][:],
+                                 frame_tmp[fd('y',iden_key)][:],
+                                 ))
+                del frame_tmp
             except Exception:
                 print ff(frame_start + j + 1)
+                print F
                 print F.keys()
-                return
-            next_part.append(frame_tmp[fd('next_part',track_key[0])][:])
-            poses.append(zip(frame_tmp[fd('x',iden_key)][:],
-                             frame_tmp[fd('y',iden_key)][:],
-                             ))
-
-            del frame_tmp
-        drift_val = (start_frame.attrs[fd('cumulative_displacement',track_key[0])][:]
-                     - end_frame.attrs[fd('cumulative_displacement',track_key[0])][:])
-        del start_frame
-        del end_frame
+                raise
+            
+                
+        
     finally:
         # clean up hdf
         F.close()
@@ -507,8 +517,7 @@ def coarse_grain_dedrift(track_key,conn,frame_start,forward_step,grid_size):
     # loop over particles in start frame
     disp_sum = [(0,0) for j in range(0,forward_step-1)]
     plane_count = np.zeros(forward_step-1)
-    print disp_sum[:10]
-    print plane_count[:10]
+
     for pos,nxt_p in zip(init_pos,init_next_part):
         die_flag = False
         prev_pos = pos
@@ -538,17 +547,13 @@ def coarse_grain_dedrift(track_key,conn,frame_start,forward_step,grid_size):
             cg_count[n] += 1
         except Exception:
             print n
-    print disp_sum[:10]
-    print plane_count[:10]
+
     drift_val = np.sum([v/c for (v,c) in zip(disp_sum,plane_count)],0)
     print drift_val
-            
+    print np.mean([(v)/c for (v,c) in zip( cg_vectors,cg_count)],0)
     # average the vectors
-    cg_avg = [v for (v,c) in zip( cg_vectors,cg_count)]
-    print drift_val
-    print cg_vectors[:10]
     cg_avg = [(v)/c-drift_val for (v,c) in zip( cg_vectors,cg_count)]
-    print cg_avg[:10]
+
     # split up the results
     u,v = zip(*cg_avg)
     x,y = np.meshgrid(grid_size*(np.arange(0,hash_dims[0]) + .5),grid_size*(np.arange(0,hash_dims[1]) + .5))
