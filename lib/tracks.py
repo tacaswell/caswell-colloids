@@ -557,7 +557,7 @@ def coarse_grain_dedrift(track_key,conn,frame_start,forward_step,grid_size):
     # split up the results
     u,v = zip(*cg_avg)
     x,y = np.meshgrid(grid_size*(np.arange(0,hash_dims[0]) + .5),grid_size*(np.arange(0,hash_dims[1]) + .5))
-    return x,y,u,v,cg_count
+    return x,y,np.array(u),np.array(v),cg_count
 
 
 def remove_track_comp(comp_key,conn):
