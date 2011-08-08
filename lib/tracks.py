@@ -90,14 +90,9 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
 
     # make sure track id is valid
     # extract comp_id
-    (fin,dset_key) = conn.execute("select fout,dset_key from comps where\
-    function='tracking' and comp_key=?",
+    (fin,dset_key,iden_key) = conn.execute("select fout,dset_key,iden_key from tracking where" +
+                                  " comp_key=?",
                                   (track_comp_key,)).fetchone()
-    (d_temp,) = conn.execute("select temp from dsets where key = ?",
-                             (dset_key,)).fetchone()
-    (iden_key, ) = conn.execute("select iden_key from tracking_prams where comp_key=?",
-                                (track_comp_key,)).fetchone()
-
     # open file
     F = h5py.File(fin,'r')
 
@@ -122,7 +117,7 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         # set up figure
         (fig,ax) = plots.set_up_plot()
 
-        ax.set_title('T: ' + str(d_temp) + ' frame: ' + str(init_frame)
+        ax.set_title(' frame: ' + str(init_frame)
                      + ' dtime: ' + str(dtime) + 'ms')
 
         def trk_len_hash(trk):
