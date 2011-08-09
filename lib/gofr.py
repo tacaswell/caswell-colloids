@@ -30,7 +30,7 @@ import scipy.optimize as sopt
 
 
 
-import T_convert as ltc
+
 import fitting
 import general as gen
 import plots 
@@ -343,8 +343,8 @@ def get_gofr2D_dict(comp_num,conn):
 
 def get_gofr_tmp(fname,comp_num,conn):
     F = h5py.File(fname,'r')
-    print fname
     
+    t = 0
     if 'temperature' in  F["gofr_%(#)07d"%{"#":comp_num}].attrs:
         t = F["gofr_%(#)07d"%{"#":comp_num}].attrs['temperature']
         print 't from file',t
@@ -586,7 +586,8 @@ def tmp_series_gn2D(comp_list,conn,**kwargs):
            for c in comp_list]
 
     
-    
+    for r in res:
+        print r
     temps = [get_gofr_tmp(r[1],r[0],conn) for r in res]
     print temps
     
@@ -1801,4 +1802,40 @@ def fix_temperature(comp_key,conn):
     F.close()
     return t
 
+
+
+def fix_temperature_by_plane(comp_key,conn):
+    '''Fixes the temperature meta data (for exmaple, if you forget to
+    set it in the Iden* files)'''
+
+    (iden_key,g_fname) = conn.execute("select iden_key,fout from gofr_by_plane where comp_key = ?",
+                                      (comp_key,)).fetchone()
+    (i_fname,) = conn.execute("select fout from iden where comp_key = ?",(iden_key,)).fetchone()
+    print iden_key,i_fname
+    
+    F_iden = h5py.File(i_fname,'r')
+    F_gbp = h5py.File(g_fname,'r+')
+    gbp_grp = F_gbp[gen.fd('gofr_by_plane',comp_key)]
+    comp_count = gbp_grp.attrs['comp_count']
+    fr_p_comp = gbp_grp.attrs['frames_per_comp']
+    for j in range(comp_count):
+        temp_sum = 0
+        for k in range(0,fr_p_comp):
+            temp_sum += F_iden[gen.ff(j*fr_p_comp + k)].attrs['temperature']
+        t = temp_sum/fr_p_comp
+        grp = gbp_grp['comp_%07d'%j]
+
+        if 'temperature' in  grp.attrs:
+            del grp.attrs['temperature']
+        
+        grp.attrs.create('temperature',t,None,'float32')
+
+
+
+
+    F_iden.close()
+    del F_iden
+    F_gbp.close()
+    del F_gbp
+    
 
