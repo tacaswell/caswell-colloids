@@ -69,7 +69,7 @@ class Series_wrapper:
             print self.base_name%j
             im = PIL.Image.open(self.base_name%j)
         except IOError:
-            print "didn't find th efile"
+            print "didn't find the file"
             return None
         img_sz = im.size[::-1]
         return np.reshape(im.getdata(),img_sz)
@@ -79,11 +79,14 @@ def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
     ''' Function that does all of the look up for you '''
     
     (iden_fname,dset_key,
-     sname,img_fname,ftype) = conn.execute("select fout,dset_key,sname,fname,ftype "+
+     sname,img_fname,ftype) = conn.execute("select fout,iden.dset_key,sname,fname,ftype "+
                                            " from iden inner join dsets on "+
                                            "dsets.dset_key = iden.dset_key where comp_key = ?",
                                            (iden_key,)).fetchone()
     
+    cpn =  ['e_cut','rg_cut','shift_cut'] 
+    cp = [.5,15,1.5]
+    cut_pram = dict(zip(cpn,cp))
     
     if ftype == 1:
         im_wrap = Stack_wrapper(img_fname)
@@ -93,20 +96,39 @@ def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
         pass
     F = h5py.File(iden_fname,'r')
 
-    plot_centers(F,im_wrap,frame,iden_key,ax,alpha)
+    plot_centers(F,im_wrap,frame,iden_key,ax,alpha,cut_pram)
 
     F.close()
     del F
 
 
-def plot_centers(F,s_wrapper,frame,comp_key,ax=None,alpha=None):
+def plot_centers(F,s_wrapper,frame,comp_key,ax=None,alpha=None,cut_prams=None):
     '''Function that automates some of the extraction steps '''
 
-    x,y = extract_centers(F,frame,comp_key)
+    x,y = extract_centers(F,frame-1,comp_key,cut_prams)
     img = s_wrapper.get_frame(frame)
 
-    _plot_centers(img,x,y)
-
+    ax = _plot_centers(img,x,y)
+    
+    ## x_trim,y_trim = [],[]
+    ## thresh = 2
+    
+    ## for x1,y1 in zip(x,y):
+    ##     fail_flag = False
+    ##     n_count = 0
+    ##     for x2,y2 in zip(x,y):
+            
+    ##         d = np.sqrt((x1-x2)**2 + (y1-y2)**2)
+    ##         if d< 25:
+    ##             n_count +=1
+    ##         if n_count > (thresh+1):
+    ##             fail_flag = True
+    ##             continue
+    ##     if not fail_flag:
+    ##         x_trim.append(x1)
+    ##         y_trim.append(y1)
+    ## print len(x_trim),len(y_trim)
+    ## ax.plot(x_trim,y_trim,'r.')
     
 def _plot_centers(img,x,y,ax=None,alpha=None):
     '''img_wrapper is assumed to be any object that implements
@@ -152,7 +174,7 @@ def _plot_centers(img,x,y,ax=None,alpha=None):
     non_i_plot_stop(istatus)
     # turns interactive plotting back on.
     
-    pass
+    return ax
 
 
 def extract_centers(F,frame,comp_num,cut_pram = None):
@@ -167,7 +189,7 @@ def extract_centers(F,frame,comp_num,cut_pram = None):
     def fd(str_,n):
         """ formats dset names"""
         return str_ + "_%(#)07d"%{"#":n}
-
+    
     x = F[ff(frame)][fd('x',comp_num)][:]
     y = F[ff(frame)][fd('y',comp_num)][:]
 
