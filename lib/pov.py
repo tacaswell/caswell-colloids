@@ -32,10 +32,10 @@ def _start_scene(pov_file,max_x,max_y,max_z):
     background {color White}
     camera {
 """
-    print >>pov_file, 'location <' + str(max_x*3)+ ',' +str(max_y*3)+','+str(max_z*3)  + '>'
+    print >>pov_file, 'location <' + str(max_x*3)+ ',' +str(max_y*3)+','+str(max_z*6)  + '>'
     print >>pov_file, 'look_at  <' + str(max_x/2)+ ',' +str(max_y/2)+','+str(max_z/2)  + '>'
     print >>pov_file, """
-    angle 21
+    angle 25
     sky <0,0,1>
     }
 """
@@ -66,9 +66,9 @@ def _set_posistion(pov_file, vec,r):
 
     print >> pov_file, "<"+ str(vec[0])+","+str(vec[1])+","+str(vec[2])+">," + str(r)
 
-
+    
 def make_range_pov(cord_set,range_x,range_y,range_z,out_name):
-
+    
     pov_file= open(out_name,'w')
 
     max_I = max(cord_set.I)
@@ -130,3 +130,31 @@ def make_z_slices(cord_set,step_sz,base_name):
         make_range_pov(cord_set,(0,max_x),(0,max_y),(zstp,zstp+step_sz),base_name + '_%(#)04d'%{"#":(zstp/step_sz)} + '.pov')
         pass
     
+def plot_all(cord_set,base_name):
+    max_z = max(cord_set.z)
+    max_y = max(cord_set.y)
+    max_x = max(cord_set.x)
+    max_I = max(cord_set.I)
+
+    (range_x,range_y,range_z,out_name) = (.1*max_x,.9*max_x),(.1*max_y,.9*max_y),(.1*max_z,.9*max_z),base_name + '.pov'
+    
+    pov_file= open(out_name,'w')
+
+    _start_scene(pov_file,max_x,max_y,max_z)
+    draw_box(pov_file,(0,max_x),(0,max_y),(0,max_z))
+    scale = .94
+
+    print .5*max_x,.5*max_y,.5*max_z
+    for (xi,yi,zi,Ii) in cord_set:
+
+        if zi<range_z[1] and zi>range_z[0] and xi <range_x[1] and xi > range_x[0] and yi<range_y[1] and yi >range_y[0]:
+            _open_particle(pov_file)
+            _set_posistion(pov_file,(xi,yi,zi),.5*scale)
+            _close_particle(pov_file,Ii/max_I)
+
+    _end_scene(pov_file)
+
+
+    pov_file.close()
+
+
