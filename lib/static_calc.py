@@ -24,20 +24,21 @@ import numpy as np
 
 class gofr_comp:
     def __init__(self,nbins,max_r):
-        self.nbins = nbins
-        self.vals = np.zeros(self.nbins)
-        self.max_r = max_r
-        self.min_r = 0
-        self.bin_edges = np.linspace(self.min_r,self.max_r,self.nbins+1)
-        self.add_count = 0
-        self.scaleing = self.nbins /(self.max_r - self.min_r)
-    def add_particle(self,cord,list):
+        self.nbins = nbins               # number of data points to take
+        self.vals = np.zeros(self.nbins) # data array
+        self.max_r = max_r              # maximum r to be added
+        self.min_r = 0                  # minimum r to be added
+        self.bin_edges = np.linspace(self.min_r,self.max_r,self.nbins+1) # locations of bin edges
+        self.add_count = 0                                    # number of particles added
+        self.scaleing = self.nbins /(self.max_r - self.min_r) # scaling for binning
+        self.spat_dim = 2               # number of spatial dimensions
+    def add_particle(self,cord,lst):
         """Adds a particle to the g(r) computation by taking distances
         against list"""
 
         cord = np.array(cord)
         
-        for p in list:
+        for p in lst:
             p = np.array(p)
             r = np.sqrt(np.sum((p-cord)**2))
             
@@ -48,27 +49,51 @@ class gofr_comp:
             self.vals[np.floor(r*self.scaleing)]+=1
 
         self.add_count+=1
+    def normalize(self):
+        """ returns the left bin edges and the normalized values for
+        g(r)"""
 
+        
+        if self.spat_dim == 2:
+            area_norm = np.pi*np.diff(self.bin_edges**2)
+            rho = (np.sum(self.vals) + self.add_count)/(np.pi*(self.max_r**2))
+        elif self.spat_dim == 3:
+            area_norm = 4*np.pi*np.diff(self.bin_edges**3)/3
+            rho = (np.sum(self.vals) + self.add_count)/(4*np.pi*(self.max_r**3)/3)
+        else:
+            raise Exception("not a valid dimension")
+        print rho
+        print self.add_count
+        return self.bin_edges[:-1], self.vals/(area_norm*rho)
 
-def indx_to_cord_2D(indx,hash_size):
+def indx_to_cord(indx,hash_size):
 
     if indx <0 or (not indx < np.prod(hash_size) ):
         raise "Index out of range"
+
+    if len(hash_size)==2:
+        cord = (indx%hash_size[0],indx//hash_size[0])
+    elif len(hash_size)==3:
+        cord = (indx%hash_size[0],(indx//hash_size[0])%hash_size[1],indx//(hash_size[0]*hash_size[1]))
+    return cord
+
     
-    return (indx%hash_size[0],indx//hash_size[0])
-    
-def cord_to_indx_2D(cord,hash_size):
+def cord_to_indx(cord,hash_size):
     """Converts coordinate position to an index.  """
     assert len(cord) == len(hash_size)
     cord = np.array(cord)
     if any(cord  >= hash_size) or any(cord < 0):
         print cord
         print hash_size
-        raise "cord out of range"
-    return int(cord[0] + cord[1] * hash_size[0])
+        raise Exception("cord out of range")
+    if len(cord)==2:
+        indx = int(cord[0] + cord[1] * hash_size[0])
+    elif len(cord)==3:
+        indx = int(cord[0] + cord[1] * hash_size[0] + cord[2] * hash_size[0]*hash_size[1] )
+    return indx
 
 def hash_fun(cord,box_size,hash_size):
-    return cord_to_indx_2D(np.floor(np.array(cord)/box_size),hash_size)
+    return cord_to_indx(np.floor(np.array(cord)/box_size),hash_size)
 
 
 
@@ -78,22 +103,35 @@ class hash_case:
         self.hash_dims = np.ceil(np.array(dims)/box_size)
         self.box_size = box_size
         self.hash_table = [[] for j in range(int(np.prod(self.hash_dims)))]
+        self.spat_dims = len(dims)
     def get_region(self,center, rrange):
         center = np.array(center)
         region = []
-        shifts = [np.array([j,k]) for j in range(-rrange,rrange + 1) for k in range(-rrange,rrange + 1)]
-        boxes =  [region.extend(self.hash_table[cord_to_indx_2D(center + s,self.hash_dims)]) for s in shifts]
+        if self.spat_dims == 2:
+            shifts = [np.array([j,k]) for j in range(-rrange,rrange + 1) for k in range(-rrange,rrange + 1)]
+            boxes =  [region.extend(self.hash_table[cord_to_indx(center + s,self.hash_dims)]) for s in shifts]
+        elif self.spat_dims ==3:
+            shifts = [np.array([j,k,m])
+                      for j in range(-rrange,rrange + 1)
+                      for k in range(-rrange,rrange + 1)
+                      for m in range(-rrange,rrange + 1)]
+            boxes =  [region.extend(self.hash_table[cord_to_indx(center + s,self.hash_dims)]) for s in shifts]
         return region
     def add_particle(self,cord):
         self.hash_table[hash_fun(cord,self.box_size,self.hash_dims)].append(cord)
         
     def compute_corr(self,buf,fun):
-        centers = [(j,k)
-                   for j in range(buf,int(self.hash_dims[0]-buf))
-                   for k in range(buf,int(self.hash_dims[1]-buf))]
+        if self.spat_dims ==2:
+            centers = [(j,k)
+                       for j in range(buf,int(self.hash_dims[0]-buf))
+                       for k in range(buf,int(self.hash_dims[1]-buf))]
+        elif self.spat_dims ==3:
+            centers = [(j,k,m)
+                       for j in range(buf,int(self.hash_dims[0]-buf))
+                       for k in range(buf,int(self.hash_dims[1]-buf))
+                       for m in range(buf,int(self.hash_dims[2]-buf))]
         for c in centers:
-            print c
-            cur_box = self.hash_table[cord_to_indx_2D(c,self.hash_dims)]
+            cur_box = self.hash_table[cord_to_indx(c,self.hash_dims)]
             cur_region = self.get_region(c,buf)
             for p in cur_box:
                 fun(p,cur_region)
@@ -111,7 +149,7 @@ def link_dumb(h1,h2,m_range):
                for k in range(buf,int(h1.hash_dims[1]-buf))]
     for c in centers:
         # get list of particles in current box
-        cur_box_lst = h1.hash_table[cord_to_indx_2D(c,h1.hash_dims)]
+        cur_box_lst = h1.hash_table[cord_to_indx(c,h1.hash_dims)]
         # get list of particles in current region in h1
         h2_region = h2.get_region(c,1)
         if len(h2_region)>0:
