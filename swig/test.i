@@ -2,5 +2,14 @@
 %{
 #include "test.h"
 %}
-extern int t_fun(int j);
+int t_fun(int j);
+
+class dummy{
+ public:
+  int x;
+  int y;
+  int d_fun();
+};
+
+
 
