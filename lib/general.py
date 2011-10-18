@@ -437,3 +437,26 @@ def get_bin_centers(left_edges):
     bin_diffs = np.append(bin_diffs,np.mean(bin_diffs))
 
     return left_edges + bin_diffs
+
+def second_deriv(edges,values):
+    ''' smooth the values and takes the second derivative
+
+    Smoothing code taken from http://www.scipy.org/Cookbook/SignalSmooth
+
+    '''
+    window_len = 3
+    # this mirrors the last few points out so that the convolution is happy
+    s=np.r_[values[window_len-1:0:-1],values,values[-1:-window_len:-1]]
+    w = np.ones(window_len,'d')
+    values = np.convolve(w/w.sum(),s,mode='valid')[(window_len//2):-(window_len//2)]
+    
+    h = np.mean(np.diff(edges))
+    dr2 = (values[2:] - 2*values[1:-1] + values[:-2])/(h*h)
+
+    window_len = 3
+    s=np.r_[dr2[window_len-1:0:-1],dr2,dr2[-1:-window_len:-1]]
+    w = np.ones(window_len,'d')
+    
+    dr2 = np.convolve(w/w.sum(),s,mode='valid')[(window_len//2):-(window_len//2)]
+    
+    return edges[1:-1],dr2

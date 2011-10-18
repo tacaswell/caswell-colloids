@@ -1839,3 +1839,29 @@ def fix_temperature_by_plane(comp_key,conn):
     del F_gbp
     
 
+def correct_3D(edges,values,b):
+    '''
+    Corrects g(r) for the 2D projection according to the method described in JPSP 78, 065004 (2009).
+
+    edges: left bin edges
+    values: 2D g(r) values
+    b: slab thickness
+
+    
+    '''
+    
+    
+    e_step = np.mean(np.diff(edges))
+
+    min_indx = np.min(np.nonzero(edges>b))
+
+    
+    r = edges[min_indx:-2]
+    d2edges,d2val = gen.second_deriv(edges,values)
+
+    gr_indx = np.floor((r *(1-(1/12) * (b/r)**2 + (1/720)*(b/r)**4))/e_step).astype(np.int)
+    dr2_indx = np.floor(r/e_step).astype(np.int)+1
+
+    
+    return r,values[gr_indx] + -(7/1400)* ((b**4)/r**2) * d2val[dr2_indx]
+    
