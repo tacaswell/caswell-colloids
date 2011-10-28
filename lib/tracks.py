@@ -38,19 +38,35 @@ class track:
         pass
     def append(self,pos):
         self.positions.append(np.array(pos))
-    
-        
 
-def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
+class plane_wrapper:
+    def __init__(self,g,iden_key,track_key):
+        self.x = g[fd('x',iden_key)][:]
+        self.y = g[fd('y',iden_key)][:]
+        self.next_part = g[fd('next_part',track_key)][:]
+
+    def get_particle(self,p_id):
+        return np.array((self.x[p_id],self.y[p_id])),self.next_part[p_id]
+    
+class data_wrapper:
+    def __init__(self,F,iden_key,track_key):
+        self.iden_key = iden_key
+        self.track_key = track_key
+        self.planes = [plane_wrapper(F[ff(f)],iden_key,track_key) for f in range(0,F.attrs['number-of-planes'])]
+        pass
+
+    def get_particle(self,frame,p_id):
+        return self.planes[frame].get_particle(p_id)
+    
+def extract_track(DW,frame_num,part_num,trk):
     """starting with particle part_num in frame_num extracts the path
     going forwards"""
-    trk.append((F[ff(frame_num)][fd('x',iden_group)][part_num],
-                F[ff(frame_num)][fd('y',iden_group)][part_num]))
-    
-    nxt = F[ff(frame_num)][fd('next_part',track_group)][part_num]
+    pos,nxt = DW.get_particle(frame_num,part_num)
+    trk.append(pos)
+        
     
     if  nxt != -1:
-        extract_track(F,frame_num+1,nxt,track_group,iden_group,trk)
+        extract_track(DW,frame_num+1,nxt,trk)
     return trk
 
 def extract_all_tracks(track_comp_key,conn,min_track_len):
@@ -64,13 +80,13 @@ def extract_all_tracks(track_comp_key,conn,min_track_len):
     # open file
     F = h5py.File(fin,'r')
     try:
+        DW = data_wrapper(F,iden_key,track_comp_key)
         # get list of particles that are of the minimum length or longer
-        t_lst = [(i,p,l) for (i,p,l) in
-                 itertools.izip( F[fd('tracking',track_comp_key)]['start_particle'],
-                                 F[fd('tracking',track_comp_key)]['start_plane'],
-                                 F[fd('tracking',track_comp_key)]['length'])
-                 if l > min_track_len]
-        tracks = [extract_track(F,p,i,track_comp_key,iden_key,[]) for (i,p,l) in t_lst]
+        tracks = [extract_track(DW,p,i,track(p)) for (i,p,l) in
+                  itertools.izip( F[fd('tracking',track_comp_key)]['start_particle'],
+                                  F[fd('tracking',track_comp_key)]['start_plane'],
+                                  F[fd('tracking',track_comp_key)]['length'])
+                                  if l > min_track_len  ]
     finally:
         # close hdf file and clean up
         F.close()
