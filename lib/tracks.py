@@ -31,6 +31,16 @@ import plots
 from general import ff, fd
 import static_calc as lsc
 
+class track:
+    def __init__(self,start_frame):
+        self.positions = []
+        self.start_frame = start_frame
+        pass
+    def append(self,pos):
+        self.positions.append(np.array(pos))
+    
+        
+
 def extract_track(F,frame_num,part_num,track_group,iden_group,trk):
     """starting with particle part_num in frame_num extracts the path
     going forwards"""
@@ -47,14 +57,10 @@ def extract_all_tracks(track_comp_key,conn,min_track_len):
     '''Extracts all of the tracks in a file'''
     # make sure track id is valid
     # extract comp_id
-    (fin,dset_key) = conn.execute("select fout,dset_key from comps where\
-    function='tracking' and comp_key=?",eu
+    (fin,dset_key,iden_key) = conn.execute("select fout,dset_key,iden_key from tracking where " +
+                                  "comp_key=?",
                                   (track_comp_key,)).fetchone()
-    (d_temp,) = conn.execute("select temp from dsets where key = ?",
-                             (dset_key,)).fetchone()
-    (iden_key, ) = conn.execute("select iden_key from tracking_prams where comp_key=?",
-                                (track_comp_key,)).fetchone()
-
+    
     # open file
     F = h5py.File(fin,'r')
     try:
