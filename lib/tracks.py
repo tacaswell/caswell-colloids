@@ -45,10 +45,11 @@ class plane_wrapper:
     def __init__(self,g,iden_key,track_key):
         self.x = g[fd('x',iden_key)][:]
         self.y = g[fd('y',iden_key)][:]
+        self.I = g[fd('intensity',iden_key)][:]
         self.next_part = g[fd('next_part',track_key)][:]
 
     def get_particle(self,p_id):
-        return np.array((self.x[p_id],self.y[p_id])),self.next_part[p_id]
+        return np.array((self.x[p_id],self.y[p_id],self.I[p_id])),self.next_part[p_id]
     
 class data_wrapper:
     def __init__(self,F,iden_key,track_key):
