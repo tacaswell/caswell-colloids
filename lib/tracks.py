@@ -40,6 +40,13 @@ class track:
         return len(self.positions)
     def append(self,pos):
         self.positions.append(np.array(pos))
+    def msd(self,max_steps):
+        max_steps = int(max_steps)
+        msd_vec = np.zeros(max_steps)
+        for j in np.arange(max_steps)+1:
+            msd_vec[j-1] = np.mean(np.sum(np.diff(vstack(trk.positions[::j])[:,:2],1,0)**2,1))
+        return msd_vec
+
 
 class plane_wrapper:
     def __init__(self,g,iden_key,track_key):
@@ -60,6 +67,19 @@ class data_wrapper:
 
     def get_particle(self,frame,p_id):
         return self.planes[frame].get_particle(p_id)
+
+
+def D_hist(trk_lst,max_t):
+    msd_vecs = [t.msd(max_t) for t in trk_lst]
+    X = matrix(arange(1,max_t+1)).T
+
+    fts = np.array([inv(X.T*X)*(X.T*matrix(msd_vecs).T) for v in msd_vecs])[0]
+
+    print mean(fts)
+    print std(fts)
+
+    return mean(fts),std(fts)
+
     
 def extract_track(DW,frame_num,part_num,trk):
     """starting with particle part_num in frame_num extracts the path
