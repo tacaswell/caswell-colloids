@@ -47,7 +47,7 @@ class Stack_wrapper:
             self.im.seek(j)
         except EOFError:
             return None
-        return np.reshape(self.im.getdata(),self.im_sz)
+        return np.reshape(self.im.getdata(),self.im_sz).astype('uint16')
         
 
 class Series_wrapper:
@@ -72,8 +72,7 @@ class Series_wrapper:
             print "didn't find the file"
             return None
         img_sz = im.size[::-1]
-        return np.reshape(im.getdata(),img_sz)
-
+        return np.reshape(im.getdata(),img_sz).astype('uint16')
 
 def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
     ''' Function that does all of the look up for you '''
