@@ -36,6 +36,8 @@ class track:
         self.positions = []
         self.start_frame = start_frame
         pass
+    def __len__(self):
+        return len(self.positions)
     def append(self,pos):
         self.positions.append(np.array(pos))
 
