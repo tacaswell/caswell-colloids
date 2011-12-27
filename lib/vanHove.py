@@ -388,8 +388,7 @@ def plot_vanHove_sp(comp_lst,time_step,conn,wind =1,func = fitting.fun_exp_p_gau
     return outs,tmps
 
 
-def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,norm=False,**kwargs):
-    ''''''
+def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,norm=False,**
     r_scale = 6.45/60
     if 'Tc' in kwargs:
         T_conv_fun = ltc.T_to_phi_factory(kwargs['Tc'],ltc.linear_T_to_r_factory(-.011,0.848))
@@ -431,7 +430,7 @@ def plot_vanHove_single_axis(comp_lst,time_step,conn,title=None,ax=None,wind =1,
 
 
 def plot_vanHove_diff(vh_a,vh_b,time_step,conn,ax,wind =1,**kwargs):
-    ''''''
+    ''' '''
 
     
     
