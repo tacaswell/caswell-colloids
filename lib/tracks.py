@@ -32,8 +32,11 @@ from general import ff, fd
 import static_calc as lsc
 
 class track:
-    def __init__(self,start_frame):
-        self.positions = []
+    def __init__(self,start_frame,positions = None):
+        if positions is None:
+            self.positions = []
+        else:
+            self.positions = positions 
         self.start_frame = start_frame
         pass
     def __len__(self):
@@ -44,8 +47,50 @@ class track:
         max_steps = int(max_steps)
         msd_vec = np.zeros(max_steps)
         for j in np.arange(max_steps)+1:
-            msd_vec[j-1] = np.mean(np.sum(np.diff(vstack(trk.positions[::j])[:,:2],1,0)**2,1))
+            msd_vec[j-1] = np.mean(np.sum(np.diff(np.vstack(self.positions[::j])[:,:2],1,0)**2,1))
         return msd_vec
+
+    def trim_track(self,thresh):
+        '''Trims any points with I<thresh off either end of the track
+        returns via changing the object, returns none if the track is emptied
+        returns a copy for good measure'''
+
+        poss = self.positions
+
+        while len(poss)>0 and poss[0][2] < thresh:
+            poss.pop(0)
+            t.start_frame +=1
+
+        while len(poss)>0 and poss[-1][2] < thresh:
+            poss.pop()
+
+        if len(poss) ==0:
+            return None
+
+        return self
+
+    def split_track(self,thresh):
+        '''Splits a track on positions that have I<thresh
+
+        returns a list of the new tracks
+        '''
+
+        t = trim_track(self,thresh)
+        if t is None:
+            return []
+        
+        t_list = [self]
+        poss = self.positions
+        for j in range(len(poss)):
+            if poss[j][2] < thresh:
+                t.positions = poss[:j]
+
+                t2 = lt.track(t.start_frame + j+1,poss[j+1:])
+                t_list.extend(split_track(t2,thresh))
+                break
+
+        return t_list
+            
 
 
 class plane_wrapper:
@@ -74,7 +119,7 @@ def D_hist(trk_lst,max_t):
     X = matrix(arange(1,max_t+1)).T
 
     fts = np.array([inv(X.T*X)*(X.T*matrix(msd_vecs).T) for v in msd_vecs])[0]
-
+    
     print mean(fts)
     print std(fts)
 
