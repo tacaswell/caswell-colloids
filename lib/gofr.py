@@ -27,9 +27,9 @@ import matplotlib.pyplot as plts
 import numpy as np
 import scipy.odr as sodr
 import scipy.optimize as sopt
+import scipy.integrate as sint
 
-
-
+import T_convert as ltc
 
 import fitting
 import general as gen
@@ -1272,6 +1272,27 @@ def get_gofr_by_plane_cps(comp_num,conn):
     return g_l
 
 
+def get_gofr_by_plane_new(comp_num,conn):
+    fname = conn.execute("select fout from gofr_by_plane where comp_key = ?",(comp_num,)).fetchall()
+    fname = fname[-1][0]
+    F =  h5py.File(fname)
+    g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
+
+    g_l = [cord_pairs(g[c]['bin_edges'][:],g[c]['bin_count'][:]) for c in g]
+    
+    rho = [g[c].attrs['rho'] for c in g]
+    fr_c = [g[c].attrs['frames_per_comp'] for c in g]
+    area = [ np.pi*(np.append(g_.x[1:],np.mean(np.diff(g_.x))-g_.x[-1])**2 - g_.x**2)  for g_ in g_l]
+    var = [g_.y/(8000*fc_*r_*a_) for g_,r_,a_,fc_ in zip(g_l,rho,area,fr_c)]
+    print np.mean(var[0])
+    temps = [g[c].attrs['temperature'] for c in g]
+
+    
+    del g
+    F.close()
+    return g_l,temps,var
+
+
 def plot_bp_rho(comp,ax,conn):
     ''' Extracts the rho value from gofr_by_plane computations and plots the results '''
     
@@ -1865,3 +1886,17 @@ def correct_3D(edges,values,b):
     
     return r,values[gr_indx] + -(7/1400)* ((b**4)/r**2) * d2val[dr2_indx]
     
+def integrate_r(edges,values,r):
+    '''
+    Intergrates out to r assumeing 3D.
+
+    This is useful to calculate the average number of contacts
+    '''
+
+    max_ind = np.max(np.flatnonzero(edges<r))+1
+    edges_tmp = edges[:max_ind]
+    values_tmp = values[:max_ind]
+
+    values_tmp *=edges_tmp**2
+
+    return sint.simps(values_tmp,edges_tmp)
