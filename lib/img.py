@@ -27,6 +27,8 @@ import numpy as np
 
 # needed for the wrapper classes
 
+
+
 # needed for plotting
 
 class Stack_wrapper:
@@ -74,6 +76,13 @@ class Series_wrapper:
         img_sz = im.size[::-1]
         return np.reshape(im.getdata(),img_sz).astype('uint16')
 
+def return_img_wrap(dset_key,conn):
+    (fname,ftype) = conn.execute("select fname,ftype from dsets where dset_key = ?",dset_key).fetchone()
+    if ftype == 1:
+        return Stack_wrapper(fname)
+    elif ftype ==2:
+        return Series_wrapper(fname,'tif')
+    raise Exception("not a valid format type")
 def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
     ''' Function that does all of the look up for you '''
     
@@ -86,7 +95,7 @@ def plot_centers_simple(iden_key,conn,frame,ax=None,alpha=None):
     cpn =  ['e_cut','rg_cut','shift_cut'] 
     cp = [.5,15,1.5]
     cut_pram = dict(zip(cpn,cp))
-    
+    cut_pram = None
     if ftype == 1:
         im_wrap = Stack_wrapper(img_fname)
         pass
@@ -168,7 +177,7 @@ def _plot_centers(img,x,y,ax=None,alpha=None):
     # the lines in in order.  I should change my code, but I have too
     # much other stuff written around it now for it to be worth 'fixing'
     ax.imshow(np.flipud(img),interpolation='nearest',cmap=cm.gray,alpha=alpha)
-    ax.plot(x,y,'k.')
+    ax.plot(x,y,'r.')
 
     non_i_plot_stop(istatus)
     # turns interactive plotting back on.
