@@ -52,15 +52,19 @@ class Stack_wrapper:
         self.cur = self.im.tell()
         return np.reshape(self.im.getdata(),self.im_sz)
     def __iter__(self):
+        self.im.seek(0)
+        self.old = self.cur
+        self.cur = self.im.tell()
         return self
 
     def next(self):
         try:
-            self.im.seek(self.cur +1)
+            self.im.seek(self.cur)
+            self.cur = self.im.tell()+1
         except EOFError:
+            self.im.seek(self.old)
+            self.cur = self.im.tell()
             raise StopIteration
-        
-        self.cur = self.im.tell()
         return np.reshape(self.im.getdata(),self.im_sz)
 
 class Series_wrapper:
