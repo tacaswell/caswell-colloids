@@ -35,12 +35,13 @@ class Stack_wrapper:
     def __init__(self,fname):
         '''fname is the full path '''
         self.im  = PIL.Image.open(fname)
-        
+
         self.im.seek(0)
         # get image dimensions from the meta data the order is flipped
         # due to row major v col major ordering in tiffs and numpy
         self.im_sz = [self.im.tag[0x101][0],
                       self.im.tag[0x100][0]]
+        self.cur = self.im.tell()
     
     def get_frame(self,j):
         '''Extracts the jth frame from the image sequence.
@@ -49,8 +50,24 @@ class Stack_wrapper:
             self.im.seek(j)
         except EOFError:
             return None
-        return np.reshape(self.im.getdata(),self.im_sz).astype('uint16')
         
+        self.cur = self.im.tell()
+        return np.reshape(self.im.getdata(),self.im_sz).astype('uint16')
+    def __iter__(self):
+        self.im.seek(0)
+        self.old = self.cur
+        self.cur = self.im.tell()
+        return self
+
+    def next(self):
+        try:
+            self.im.seek(self.cur)
+            self.cur = self.im.tell()+1
+        except EOFError:
+            self.im.seek(self.old)
+            self.cur = self.im.tell()
+            raise StopIteration
+        return np.reshape(self.im.getdata(),self.im_sz)
 
 class Series_wrapper:
     def __init__(self,base_name,ext,padding = None):
