@@ -64,7 +64,7 @@ def save_figure(fname,fig):
     print '[[' + spath + fname+'.eps]]'
     fig.savefig(spath + fname+'.png',format='png')
     print '[[' + spath + fname+'.png]]'
-
+    return spath + fname+'.eps',spath + fname+'.png'
 
 
 class tac_figure:
