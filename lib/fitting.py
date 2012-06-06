@@ -104,10 +104,10 @@ def fun_gauss_gauss(p,r):
 def fit_curve(x,y,p0,func):
     """Fits y = func(x|p) with the initial parameters of p0.  func
     must be of the form y = func(p,x).  uses scipy odr code  """
-    
+    ifixx = np.zeros(np.array(x).shape)
     data = sodr.Data(x,y)
     model = sodr.Model(func)
-    worker = sodr.ODR(data,model,p0)
+    worker = sodr.ODR(data,model,p0,ifixx=ifixx,maxit=500)
     out = worker.run()
     out = worker.restart()
     return out
