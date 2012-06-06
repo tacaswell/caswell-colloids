@@ -29,7 +29,7 @@ import util
 def open_conn(fname=None):
     '''Opens the data base at the standard location and returns the connection'''
     if fname is None:
-        fname = '/home/tcaswell/colloids/processed/processed_data.db'
+        fname = "/home/tcaswell/colloids/proc_db.db"
     conn =sqlite3.connect(fname)
     conn.execute('PRAGMA foreign_keys = ON;')
     return conn
