@@ -76,7 +76,7 @@ def guess_dtype(fname):
         return 'ztl'
     elif fname.find('_z')!=-1:
         return 'z'
-    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1 or fname.find('heating')!=-1:
+    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1 or fname.find('heating')!=-1 or fname.find('ramp')!=-1:
         return 'ramp'
     else:
         return 't'
