@@ -28,6 +28,7 @@ import numpy as np
 import scipy.odr as sodr
 import scipy.optimize as sopt
 import scipy.integrate as sint
+import scipy.interpolate as sinter
 
 import T_convert as ltc
 
@@ -396,25 +397,14 @@ def get_rhoT(comp,conn):
     
     return (rho,temp)
 
-    
-def rebin_gofr(comp_key,conn,bin_count):
-    ''' Takes a g(r) computation and re bins the data to wider bins
-    (integer multiple of existing bins
-
-    returns the same data is the same format as the other g(r) extraction functions.
-
-    '''
-
-    # extract the raw g(r)
-    data,attr = get_gofr2D_dict(comp_key,conn)
-    # convert the bin values to un-normalized counts
-
-    
-    bins = np.append(data.x ,[attr['max_range'] * attr['scale']])
-    vals = data.y * np.diff(bins**2)    # we don't need pi because it will be divided out below
+def rebin_vals(data,bin_count):
+    '''rebins an to an interger multiple of the existing bin size'''
+    bins = np.append(data.x,[data.x[-1] + np.mean(np.diff(data.x))])
+    vals = data.y * np.diff(bins*bins)
     
     # calculate new bin edges
     n_bins = data.x[::bin_count]
+
     if len(data.x)%bin_count == 0:
         n_bins = np.append(n_bins, bins[(len(data.x)//bin_count)*bin_count])
     # sum bin counts
@@ -423,7 +413,23 @@ def rebin_gofr(comp_key,conn,bin_count):
 
     n_vals = n_vals/np.diff(n_bins**2)  # we don't need pi because it is omitted above as well
 
-    return cord_pairs(n_bins[:-1],n_vals),attr
+    return cord_pairs(n_bins[:-1],n_vals)
+
+    
+def rebin_gofr(comp_key,conn,bin_count):
+    ''' Takes a g(r) computation and re bins the data to wider bins
+    (integer multiple of existing bins
+
+    returns the same data is the same format as the other g(r) extraction functions.
+
+    '''
+    
+    # extract the raw g(r)
+    data,attr = get_gofr2D_dict(comp_key,conn)
+    # convert the bin values to un-normalized counts
+    
+    
+    return rebin_vals(data,bin_count)
 
 
 ####################
@@ -1272,13 +1278,13 @@ def get_gofr_by_plane_cps(comp_num,conn):
     return g_l
 
 
-def get_gofr_by_plane_new(comp_num,conn):
+def get_gofr_by_plane_new(comp_num,conn,scale = 1):
     fname = conn.execute("select fout from gofr_by_plane where comp_key = ?",(comp_num,)).fetchall()
     fname = fname[-1][0]
     F =  h5py.File(fname)
     g = F['gofr_by_plane_%(#)07d'%{'#':comp_num}]
 
-    g_l = [cord_pairs(g[c]['bin_edges'][:],g[c]['bin_count'][:]) for c in g]
+    g_l = [cord_pairs(g[c]['bin_edges'][:]*scale,g[c]['bin_count'][:]) for c in g]
     
     rho = [g[c].attrs['rho'] for c in g]
     fr_c = [g[c].attrs['frames_per_comp'] for c in g]
@@ -1860,7 +1866,7 @@ def fix_temperature_by_plane(comp_key,conn):
     del F_gbp
     
 
-def correct_3D(edges,values,b):
+def correct_3D(g,b,itype = 2,s=0.007):
     '''
     Corrects g(r) for the 2D projection according to the method described in JPSP 78, 065004 (2009).
 
@@ -1870,21 +1876,56 @@ def correct_3D(edges,values,b):
 
     
     '''
+    # default value
+    SPLINE = True
+    # really stupid way of doing selection
+    NUMERIC = itype ==0
+    INTER = itype==1
+    SPLINE = itype==2
+    if NUMERIC:
+        edges,values = g.x,g.y
     
+        e_step = np.mean(np.diff(edges))
+
+        min_indx = np.min(np.nonzero(edges>b))
+
+
+        r = edges[min_indx:-3]
+        d2edges,d2val = second_deriv(edges,values)
+
+        gr_indx = np.floor((r *(1-(1/12) * (b/r)**2 + (1/720)*(b/r)**4))/e_step).astype(np.int)
+
+        dr2_indx = np.floor(r/e_step).astype(np.int)+1
+        return cord_pairs(r,values[gr_indx] + -(7/1400)* ((b**4)/r**2) * d2val[dr2_indx])
+    elif INTER:
+        fg = sinter.interp1d(g.x,g.y,kind='cubic')
+        edges,values = g.x,g.y
     
-    e_step = np.mean(np.diff(edges))
+        e_step = np.mean(np.diff(edges))
 
-    min_indx = np.min(np.nonzero(edges>b))
+        min_indx = np.min(np.nonzero(edges>b))
 
-    
-    r = edges[min_indx:-2]
-    d2edges,d2val = gen.second_deriv(edges,values)
 
-    gr_indx = np.floor((r *(1-(1/12) * (b/r)**2 + (1/720)*(b/r)**4))/e_step).astype(np.int)
-    dr2_indx = np.floor(r/e_step).astype(np.int)+1
+        r = edges[min_indx:-3]
+        d2edges,d2val = second_deriv(edges,values)
 
-    
-    return r,values[gr_indx] + -(7/1400)* ((b**4)/r**2) * d2val[dr2_indx]
+     
+
+        dr2_indx = np.floor(r/e_step).astype(np.int)+1
+        return cord_pairs(r,fg((r *(1-(1/12) * (b/r)**2 + (1/720)*(b/r)**4))) + -(7/1400)* ((b**4)/r**2) * d2val[dr2_indx])
+    elif SPLINE:
+        edges,values = g.x,g.y
+        min_indx = np.min(np.nonzero(edges>b))
+
+        r = edges[min_indx:-3]
+        rg_new = r *(1-(1/12) * (b/r)**2 + (1/720)*(b/r)**4)
+
+        tck = sinter.splrep(g.x,g.y,s=s)
+        ynew = sinter.splev(rg_new,tck,der=0)
+        yder = sinter.splev(r,tck,der=2)
+
+        return cord_pairs(r,ynew + -(7/1400)* ((b**4)/r**2) * yder)
+
     
 def integrate_r(edges,values,r):
     '''
@@ -1899,4 +1940,4 @@ def integrate_r(edges,values,r):
 
     values_tmp *=edges_tmp**2
 
-    return sint.simps(values_tmp,edges_tmp)
+    return 4*np.pi*sint.simps(values_tmp,edges_tmp)

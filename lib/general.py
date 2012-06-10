@@ -25,11 +25,12 @@ import numpy as np
 import fitting
 import util 
 
+import os
 
 def open_conn(fname=None):
     '''Opens the data base at the standard location and returns the connection'''
     if fname is None:
-        fname = '/home/tcaswell/colloids/processed/processed_data.db'
+        fname = "/home/tcaswell/colloids/proc_db.db"
     conn =sqlite3.connect(fname)
     conn.execute('PRAGMA foreign_keys = ON;')
     return conn
@@ -460,3 +461,23 @@ def second_deriv(edges,values):
     dr2 = np.convolve(w/w.sum(),s,mode='valid')[(window_len//2):-(window_len//2)]
     
     return edges[1:-1],dr2
+
+def remove_iden_computation(comp_number,conn):
+    (f_gofr,) = conn.execute("select fout from iden where comp_key = ?"
+                                   ,comp_number).fetchone()
+
+    # the foreign key constraints should keep us safe from deleting a
+    # iden computation that is needed by other computations....I hope
+    
+    # the order is important to keep the foreign constraints happy
+    # kill gofr_prams entry
+    conn.execute("delete from iden where comp_key = ?",comp_number)
+    # kill comps entry
+    conn.execute("delete from comps where comp_key = ?",comp_number)
+    # commit to db, commit before deleting the data as unmarked data is less irritating
+    # than non-existing data
+    conn.commit()
+    
+
+    os.remove(f_gofr)
+    pass

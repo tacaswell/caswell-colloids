@@ -21,7 +21,7 @@ from datetime import datetime, date
 import lib.util  as util
 
 
-_base_path = '/home/tcaswell/colloids/data/polyNIPAM_batch_12/'
+
 
 def check_existance(conn,fname):
     '''Checks the connection to see if there is already an entry for
@@ -76,7 +76,7 @@ def guess_dtype(fname):
         return 'ztl'
     elif fname.find('_z')!=-1:
         return 'z'
-    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1 or fname.find('heating')!=-1:
+    elif fname.find('warming')!=-1 or fname.find('cooling')!=-1 or fname.find('melt')!=-1 or fname.find('heating')!=-1 or fname.find('ramp')!=-1:
         return 'ramp'
     else:
         return 't'
@@ -162,10 +162,6 @@ def display_meta_data(fname,dtype,sname,date):
     print 'date: ' +str( date)
 
     
-
-def strip_base(fname):
-    """Takes off a base path the path names"""
-    return os.path.realpath(fname).replace(_base_path,'')
     
 def guess_meta_data(fname):
     """Calls the specific functions above"""
@@ -192,7 +188,7 @@ def query_fun(fname,key,value,func):
 
 def extract_md(fname):
     """takes a guess at parsing, asks for validation, returns tuple"""
-#    fname = strip_base(fname)
+
     md = guess_meta_data(fname)
     display_meta_data(fname, *md)
     resp = util.query_yes_no('are these values correct')
