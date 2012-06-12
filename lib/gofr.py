@@ -42,7 +42,7 @@ from util import cord_pairs
 ##################
 #helper functions#
 ##################
-def find_peaks_fit(gp,dfun,p):
+def find_peaks_fit(gp,dfun,p,yvar=None):
     """Looks for peaks based on hints from the derivative of the expected function and
     the fit parameters
     returns 4 lists, one entry per peak found
@@ -52,79 +52,134 @@ def find_peaks_fit(gp,dfun,p):
     sz [coeff in quad,]
     """
 
-    dfun = fitting.fun_flipper(dfun)
-    wind = 20;
+
+
+    dfun = fun_flipper(dfun)
+    wind = 10;
 
     lmax = []
     lmin = []
     diffs = []
     sz = []
+    ermax = []
     # find the first max
-    indx = np.argmax(gp.y[15:])+15
-    pfit = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
+    indx = np.argmax(gp.y[5:])+5
+    if indx<wind:
+        indx = wind
+    pfit,perr = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind],yvar[indx-wind:indx+wind])
 
-    lmax.append((pfit.beta[1],pfit.beta[2]))
-    diffs.append(gp.x[indx]-pfit.beta[1])
+    lmax.append((pfit[1],pfit[2]))
+    ermax.append((perr[1],perr[2]))
+    diffs.append(gp.x[indx]-pfit[1])
     # get expected spacing from
     e_spc = (2*np.pi)/p[1]
 
-    print e_spc
 
-    cur_state = np.sign(pfit.beta[0])
-    sz.append(pfit.beta[0])
+
+    cur_state = np.sign(pfit[0])
+    sz.append(pfit[0])
     #start at first peak + 1/4 e_spc
-    cur_pos = pfit.beta[1] + e_spc/4
+    cur_pos = pfit[1] + e_spc/4
     # step over x range in e_spc/2 steps
     max_pos = np.max(gp.x)
-    print max_pos
-    print cur_pos
+
     while cur_pos < max_pos:
+
         # get zero crossing from dfun
         try:
             crit_p = sopt.brentq(dfun,cur_pos,cur_pos + e_spc/2,args=p)
             #print 'diff from expected ' + str(crit_p - (cur_pos + e_spc/4))
         except ValueError:
-            print "no zero found"
+         #   print "no zero found"
             break
-        # convert value into indx
-        indx = gen.val_to_indx(gp.x,crit_p)
-        # pick out window around that box
-        pfit = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind])
         
+        # convert value into indx
+        indx = val_to_indx(gp.x,crit_p)
+        # make sure index is with in range
+        
+        if indx == 0:
+          #  print "index is zero"
+            break
+        # pick out window around that box
+        try:
+            pfit,perr = fit_quad_to_peak(gp.x[indx-wind:indx+wind],gp.y[indx-wind:indx+wind],yvar[indx-wind:indx+wind])
+        except:
+            break
 
         # determine if max or min
         # add center/value to max or min output
-        if np.abs(pfit.beta[0])<.05:
-            print "peak too small"
+        if np.abs(pfit[0])<.05:
+           # print "peak too small"
             break
 
-        print 'diff from crossing and min/max ' + str( crit_p - pfit.beta[1])
-        diffs.append(crit_p - pfit.beta[1])
-        sz.append(pfit.beta[0])
+        #print 'diff from crossing and min/max ' + str( crit_p - pfit[1])
+        diffs.append(crit_p - pfit[1])
+        sz.append(pfit[0])
         
-        if pfit.beta[0] >0:
+        if pfit[0] >0:
             if cur_state != -1:
-                print "found two peaks in a row"
+            #    print "found two peaks in a row"
                 break
-            lmin.append((pfit.beta[1],pfit.beta[2]))
-            cur_state = np.sign(pfit.beta[0])
-        elif pfit.beta[0]<0:
+            lmin.append((pfit[1],pfit[2]))
+            cur_state = np.sign(pfit[0])
+        elif pfit[0]<0:
             if cur_state != 1:
-                print "found two troughs in a row"
+             #   print "found two troughs in a row"
                 break
-            lmax.append((pfit.beta[1],pfit.beta[2]))
-            cur_state = np.sign(pfit.beta[0])
-
+            lmax.append((pfit[1],pfit[2]))
+            cur_state = np.sign(pfit[0])
+            ermax.append((perr[1],perr[2]))
             
         # increment cur_pos
         cur_pos = crit_p +  e_spc/4
         wind +=1
         pass
     
-    return lmax,lmin,diffs,sz
+    return lmax,lmin,diffs,sz,ermax
 
-def fit_quad_to_peak(x,y):
+def fit_quad_to_peak(x,y,yvar=None):
+    """Fits a quadratic to the data points handed in
+
+    return to the from b[0](x-b[1]) + b[2]"""
+    
+    
+    
+    if len(x) == 0 or len(y) == 0:
+        raise Exception('no data handed in')
+    X = np.transpose(np.array([x**2,x,np.ones(len(y))]))
+    AtAiAt = np.dot(np.linalg.inv(np.dot(X.T,X)),X.T)
+    (beta,r,rn,s) = np.linalg.lstsq(X,y)
+    
+    
+    if yvar is None:
+        print 'guessing yvar'
+        yvar = np.ones(len(x)).T*(r/(len(x)-len(beta)))**2
+
+        
+    beta_var = np.dot(np.dot(AtAiAt,np.diag(yvar)),AtAiAt.T)
+    
+
+    ret_beta = np.array([beta[0],
+             -beta[1]/(2*beta[0]),
+             beta[2] - beta[0]*(beta[1]/(2*beta[0]))**2])
+
+    J = np.array([[1,0,0]
+                  ,
+                  [ (-beta[1]/(2 * beta[0]**2)) ,
+                    1/(2*beta[0]),0]
+                  ,            
+                  [ (beta[1]/(2*beta[0]))**2  ,
+                    -beta[1]/(2*beta[0]) ,
+                    1            ]
+                  ])
+    ret_beta_var = np.diag(np.dot(np.dot(J,beta_var),J.T))
+        
+    return ret_beta,ret_beta_var
+ 
+def fit_quad_to_peak_old(x,y):
     """Fits a quadratic to the data points handed in """
+
+
     def quad(B,x):
         return B[0] *(x -B[1]) ** 2 + B[2]
 
@@ -1003,7 +1058,7 @@ def make_gofr_tmp_series(comp_list,conn,ax,gn_ax,T_correction = 0,*args,**kwargs
 
         wind = 30
         m = np.argmax(g.y[5:])+5
-        betas = fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind])
+        betas = fit_quad_to_peak_old(g.x[m-wind:m+wind],g.y[m-wind:m+wind])
         
         g1 = betas.beta[2]
         print g1,np.max(g.y[5:])
@@ -1155,7 +1210,7 @@ def first_comp_g1_plot(comp_lst,conn,n=1,g1_fig=None,lab=None):
         
         # find the location of the first peak
         max_indx = [np.argmax(g.y[5:])+5 for g in gc]
-        betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
+        betas = [fit_quad_to_peak_old(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
 
         max_vals = [np.max(g.y[5:]) for g in gc]
         #points.append((np.mean(np.array([b.beta[2] for b in betas]))-1,temp))
@@ -1203,7 +1258,7 @@ def make_gofr_by_plane_plots(comp,conn,ax=None,*args,**kwargs):
 
     wind = 30
     max_indx = [np.argmax(g.y[5:])+5 for g in gc]
-    betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
+    betas = [fit_quad_to_peak_old(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
     ax.plot(T_conv_fun(np.array(temps)),np.array([b.beta[2] for b in betas])-1,'x',*args,**kwargs)
     
     ax.set_xlabel(xlab)
@@ -1243,7 +1298,7 @@ def make_gn_by_plane_plots(comp_lst,conn):
 
         wind = 30
         max_indx = [np.argmax(g.y[5:])+5 for g in gc]
-        betas = [fit_quad_to_peak(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
+        betas = [fit_quad_to_peak_old(g.x[m-wind:m+wind],g.y[m-wind:m+wind]) for m,g in zip(max_indx,gc)]
         temps = range(0,len(betas))
         ax.step(temps,[b.beta[2] for b in betas],label='fit')
         ax.step(temps,[np.max(g.y) for g in gc],label='max')
@@ -1428,7 +1483,7 @@ def plot_sofq(comp_key,conn,ax=None,cmap=None):
     (gofr,rho) = get_gofr2D_rho(r[0],conn)
     wind = 30
     indx = np.argmax(gofr.y[15:])+15
-    pfit = fit_quad_to_peak(gofr.x[indx-wind:indx+wind],gofr.y[indx-wind:indx+wind])
+    pfit = fit_quad_to_peak_old(gofr.x[indx-wind:indx+wind],gofr.y[indx-wind:indx+wind])
     
     print pfit.beta[1]
     print rho
