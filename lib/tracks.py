@@ -1,7 +1,7 @@
 #Copyright 2010 Thomas A Caswell
 #tcaswell@uchicago.edu
 #http://jfi.uchicago.edu/~tcaswell
-#
+
 #This program is free software; you can redistribute it and/or modify
 #it under the terms of the GNU General Public License as published by
 #the Free Software Foundation; either version 3 of the License, or (at
@@ -92,6 +92,17 @@ class track:
 
         return t_list
             
+class Track_shelf:
+    '''A class to carry around a list of track object + their meta data'''
+    def __init__(self):
+        self.tracks = []
+        self.dtime = 0
+        self.sp_scale = 1
+    def __iter__(self):
+        return self.tracks.__iter__()
+    def __len__(self):
+        return len(self.tracks)
+    len = __len__
 
 
 class plane_wrapper:
@@ -171,13 +182,51 @@ def print_info(F,frame_num,part_num,comp_num):
             F[ff(frame_num)][fd('track_id',comp_num)][part_num])
 
 
-def plot_tracks(track_comp_key,region,init_frame,conn):
-    """Takes in a track_comp key and a region of the image and plots
-    the tracks going forward of all the particles that are in the
-    initial frame
-
-    region = [x_offset y_offset x_len y_len]
+def plot_tracks(tracks):
     """
+    Takes in a 
+
+    """
+    print len(tracks)
+    # set up figure
+    (fig,ax) = plots.set_up_plot()
+
+    init_frame = np.min([t.start_frame for t in tracks])
+    
+    ax.set_title(' frame: ' + str(init_frame)
+                 + ' dtime: ' + str(tracks.dtime) + 'ms')
+
+    def trk_len_hash(trk):
+        return len(trk)
+    def trk_disp_hash(trk):
+        return np.sqrt((np.sum(np.array(trk[-1]) - np.array(trk[0]))**2))
+
+    trk_hash = trk_len_hash
+
+    t_len = [trk_hash(trk) for trk in tracks]
+    cm = plots.color_mapper(min(t_len),max(t_len))
+    print (min(t_len),max(t_len))
+
+    # loop over tracks and plot
+    [ax.plot(np.array([t[0] for t in trk.positions])*tracks.sp_scale,
+             np.array([t[1] for t in trk.positions])*tracks.sp_scale,
+             '-',
+             color=cm.get_color(trk_hash(trk)))
+     for trk in tracks]
+
+    x,y,I = zip(*[trk.positions[0] for trk in tracks])
+    # plot the starting points
+    ax.plot(np.array(x)*tracks.sp_scale,
+            np.array(y)*tracks.sp_scale,'xk')
+
+    ax.set_aspect('equal')
+    plt.draw()
+
+def extract_region(track_comp_key,region,init_frame,conn):
+    ''' Extracts the tracks in a given region starting from the frame init_frame 
+
+        region = [x_offset y_offset x_len y_len]
+    '''
 
     # make sure track id is valid
     # extract comp_id
@@ -186,16 +235,16 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
                                   (track_comp_key,)).fetchone()
     # open file
     F = h5py.File(fin,'r')
-
+    tc = Track_shelf()
     try:
         
         # extract list of particles in ROI
         x = F[ff(init_frame)][fd('x',iden_key)][:]
         y = F[ff(init_frame)][fd('y',iden_key)][:]
 
-        dtime = F[ff(init_frame)].attrs['dtime']
+        tc.dtime = F[ff(init_frame)].attrs['dtime']
 
-        sp_scale = gen.extract_spatial_calibration(F[ff(init_frame)])
+        tc.sp_scale = gen.extract_spatial_calibration(F[ff(init_frame)])
 
         ind = matplotlib.mlab.find((x>region[0]) * (y>region[1]) \
               * (x<(region[0] + region[2] ) )*( y<(region[1] + region[3])))
@@ -204,45 +253,14 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         
         DW = data_wrapper(F,iden_key,track_comp_key)
         # loop over particles in region and extract tracks
-        tracks = [extract_track(DW,init_frame,i,track(init_frame)) for i in ind]
-        print len(tracks)
-        # set up figure
-        (fig,ax) = plots.set_up_plot()
-
-        ax.set_title(' frame: ' + str(init_frame)
-                     + ' dtime: ' + str(dtime) + 'ms')
-
-        def trk_len_hash(trk):
-            return len(trk)
-        def trk_disp_hash(trk):
-            return np.sqrt((np.sum(np.array(trk[-1]) - np.array(trk[0]))**2))
-
-        trk_hash = trk_len_hash
+        tc.tracks = [extract_track(DW,init_frame,i,track(init_frame)) for i in ind]
         
-        t_len = [trk_hash(trk) for trk in tracks]
-        cm = plots.color_mapper(min(t_len),max(t_len))
-        print (min(t_len),max(t_len))
-        
-        # loop over tracks and plot
-        [ax.plot(np.array([t[0] for t in trk.positions])*sp_scale,
-                 np.array([t[1] for t in trk.positions])*sp_scale,
-                 '-',
-                 color=cm.get_color(trk_hash(trk)))
-         for trk in tracks]
-
-        # plot the starting points
-        ax.plot(np.array(x[ind])*sp_scale,
-                np.array(y[ind])*sp_scale,'xk')
-        
-        ax.set_aspect('equal')
-        plt.draw()
-        return tracks
+        return tc
     finally:
         # close hdf file and clean up
         F.close()
         del F
-
-
+    
 
 def _extract_tracks(F,start_plane,start_indx,iden_key,track_key):
 
