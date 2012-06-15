@@ -41,6 +41,7 @@ class track:
         pass
     def __len__(self):
         return len(self.positions)
+    len = __len__
     def append(self,pos):
         self.positions.append(np.array(pos))
     def msd(self,max_steps):
@@ -201,9 +202,10 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
 
         
         
-        
+        DW = data_wrapper(F,iden_key,track_comp_key)
         # loop over particles in region and extract tracks
-        tracks = [extract_track(F,init_frame,j,track_comp_key,iden_key,[]) for j in ind]
+        tracks = [extract_track(DW,init_frame,i,track(init_frame)) for i in ind]
+        print len(tracks)
         # set up figure
         (fig,ax) = plots.set_up_plot()
 
@@ -222,8 +224,8 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         print (min(t_len),max(t_len))
         
         # loop over tracks and plot
-        [ax.plot(np.array([t[0] for t in trk])*sp_scale,
-                 np.array([t[1] for t in trk])*sp_scale,
+        [ax.plot(np.array([t[0] for t in trk.positions])*sp_scale,
+                 np.array([t[1] for t in trk.positions])*sp_scale,
                  '-',
                  color=cm.get_color(trk_hash(trk)))
          for trk in tracks]
@@ -234,7 +236,7 @@ def plot_tracks(track_comp_key,region,init_frame,conn):
         
         ax.set_aspect('equal')
         plt.draw()
-        
+        return tracks
     finally:
         # close hdf file and clean up
         F.close()
