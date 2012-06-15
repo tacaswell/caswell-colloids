@@ -493,8 +493,9 @@ def coarse_grain(track_key,conn,frame_start,forward_step,grid_size):
             frame_tmp = F[ff(frame_start + j + 1)]
             next_part.append(frame_tmp[fd('next_part',track_key[0])][:])
             del frame_tmp
-        drift_val = (start_frame.attrs[fd('cumulative_displacement',track_key[0])][:]
-                     - end_frame.attrs[fd('cumulative_displacement',track_key[0])][:])
+        drift_val = (-start_frame.attrs[fd('cumulative_displacement',track_key[0])][:]
+                     + end_frame.attrs[fd('cumulative_displacement',track_key[0])][:])
+        
         del start_frame
         del end_frame
     finally:
