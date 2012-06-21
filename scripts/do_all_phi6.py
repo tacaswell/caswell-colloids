@@ -21,7 +21,7 @@ import lib.pov
 import lib.plots 
 import lib.util 
 import general
-import trackpy.cpp_wrapper
+import appwrappy.cpp_wrapper
 def main_func():
     conn = general.open_conn()
     res = conn.execute('select key from dsets;').fetchall()
@@ -29,7 +29,7 @@ def main_func():
         print r[0]
         
         if len(conn.execute("select comp_key from comps where function = 'phi6' and dset_key = ?;",r).fetchall()) ==0:
-            trackpy.cpp_wrapper.do_phi6(r[0],conn)
+            appwrappy.cpp_wrapper.do_phi6(r[0],conn)
     conn.close();
 
 
