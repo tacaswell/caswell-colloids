@@ -21,7 +21,7 @@
 
 import lib.general as gen
 import sqlite3 as sq
-import trackpy.cpp_wrapper as cw
+import appwrappy.cpp_wrapper as cw
 
 
 def iden_group(conn,sname):

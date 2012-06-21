@@ -21,7 +21,7 @@ import lib.pov
 import lib.plots 
 import lib.util 
 import lib.general as general
-import trackpy.cpp_wrapper
+import appwrappy.cpp_wrapper
 
 def main_func():
     conn = general.open_conn()

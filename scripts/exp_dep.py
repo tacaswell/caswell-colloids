@@ -22,7 +22,7 @@ import lib.pov
 import lib.plots as lplts
 import lib.util 
 import lib.general as gen
-import trackpy.cpp_wrapper
+import appwrappy.cpp_wrapper
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt

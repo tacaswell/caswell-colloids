@@ -17,7 +17,7 @@
 
 
 
-import trackpy.cpp_wrapper as cw
+import appwrappy.cpp_wrapper as cw
 
 def main(min_step,step_incr,step_count,comps,conn,nbins,max_range):
     '''Computes  a sweep of step max_step and min_track_length of van Hove calculations
