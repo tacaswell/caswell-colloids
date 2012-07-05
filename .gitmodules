@@ -1,0 +1,3 @@
+[submodule "find_peaks"]
+	path = find_peaks
+	url = git@gist.github.com:3048730.git
