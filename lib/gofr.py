@@ -54,7 +54,7 @@ def find_peaks_fit(gp,dfun,p,yvar=None):
 
 
 
-    dfun = fun_flipper(dfun)
+    dfun = fitting.fun_flipper(dfun)
     wind = 10;
 
     lmax = []
@@ -94,7 +94,7 @@ def find_peaks_fit(gp,dfun,p,yvar=None):
             break
         
         # convert value into indx
-        indx = val_to_indx(gp.x,crit_p)
+        indx = gen.val_to_indx(gp.x,crit_p)
         # make sure index is with in range
         
         if indx == 0:

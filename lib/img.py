@@ -26,7 +26,44 @@ import numpy as np
 
 
 # needed for the wrapper classes
+def parse_mm_xml_string(xml_str):
 
+    def _write(md_dict,name,val):
+        if name == "acquisition-time-local" or name == "modification-time-local":
+            tmp = int(val[18:])
+            val = val[:18] + "%(#)03d"%{"#":tmp}
+            val = datetime.datetime.strptime(val,'%Y%m%d %H:%M:%S.%f')
+        md_dict[name] = val
+
+
+
+    def _parse_attr(file_obj,dom_obj):
+        if dom_obj.getAttribute("id") =="Description":
+            _parse_des(file_obj,dom_obj)
+        elif dom_obj.getAttribute("type") =="int":
+            _write(file_obj,dom_obj.getAttribute("id"),int(dom_obj.getAttribute("value")))
+        elif  dom_obj.getAttribute("type") =="float":
+            _write(file_obj,dom_obj.getAttribute("id"),float(dom_obj.getAttribute("value")))
+        else: 
+            _write(file_obj,dom_obj.getAttribute("id"), dom_obj.getAttribute("value").encode('ascii'))
+
+    def _parse_des(file_obj,des_obj):
+        des_string = des_obj.getAttribute("value")
+        des_split = des_string.split("&#13;&#10;")
+
+        for x in des_split:
+            tmp_split = x.split(":")
+            if len(tmp_split) ==2:
+                _write(file_obj,tmp_split[0],tmp_split[1].encode('ascii'))
+
+    dom = xml.dom.minidom.parseString(xml_str)
+
+    props = dom.getElementsByTagName("prop")
+    f = dict()
+    for p in props:
+        _parse_attr(f,p)
+
+    return f
 
 
 # needed for plotting
@@ -42,7 +79,7 @@ class Stack_wrapper:
         self.im_sz = [self.im.tag[0x101][0],
                       self.im.tag[0x100][0]]
         self.cur = self.im.tell()
-    
+
     def get_frame(self,j):
         '''Extracts the jth frame from the image sequence.
         if the frame does not exist return None'''
@@ -69,6 +106,15 @@ class Stack_wrapper:
             raise StopIteration
         return np.reshape(self.im.getdata(),self.im_sz)
 
+    def get_meta(self,j):
+        cur = self.im.tell()
+        if cur != j:
+            self.im.seek(j)
+            xml_str = im_wrap.im.tag[270]
+            self.im.seek(cur)
+        else: 
+            xml_str = im_wrap.im.tag[270]
+        return parse_xml_string(xml_str)
 class Series_wrapper:
     def __init__(self,base_name,ext,padding = None):
         '''base name includes the full path up to the numbering

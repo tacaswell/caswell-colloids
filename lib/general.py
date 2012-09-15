@@ -470,7 +470,7 @@ def remove_iden_computation(comp_number,conn):
     # iden computation that is needed by other computations....I hope
     
     # the order is important to keep the foreign constraints happy
-    # kill gofr_prams entry
+    # kill iden entry
     conn.execute("delete from iden where comp_key = ?",comp_number)
     # kill comps entry
     conn.execute("delete from comps where comp_key = ?",comp_number)

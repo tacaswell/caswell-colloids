@@ -22,6 +22,7 @@ import h5py
 import matplotlib
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
+import matplotlib.colors as mc
 import numpy as np
 from matplotlib.collections import EllipseCollection
 
@@ -128,14 +129,14 @@ class data_wrapper:
 
 def D_hist(trk_lst,max_t):
     msd_vecs = [t.msd(max_t) for t in trk_lst]
-    X = matrix(arange(1,max_t+1)).T
+    X = np.matrix(np.arange(1,max_t+1)).T
 
-    fts = np.array([inv(X.T*X)*(X.T*matrix(msd_vecs).T) for v in msd_vecs])[0]
+    fts = np.array([np.linalg.linalg.inv(X.T*X)*(X.T*np.matrix(msd_vecs).T) for v in msd_vecs])[0]
     
-    print mean(fts)
-    print std(fts)
+    print np.mean(fts)
+    print np.std(fts)
 
-    return mean(fts),std(fts)
+    return np.mean(fts),np.std(fts)
 
     
 def extract_track(DW,frame_num,part_num,trk):
@@ -368,7 +369,7 @@ def plot_population(short_list,long_list,dead_list,ax=None):
     """function do deal with plotting the results of population_sort_tracks """
     if ax is None:
         fig = plt.figure()
-        ax = fig.gca()
+        
         
     ax.set_aspect('equal')
 
@@ -665,7 +666,31 @@ def coarse_grain_dedrift(track_key,conn,frame_start,forward_step,grid_size):
     x,y = np.meshgrid(grid_size*(np.arange(0,hash_dims[0]) + .5),grid_size*(np.arange(0,hash_dims[1]) + .5))
     return x,y,np.array(u),np.array(v),cg_count
 
+def display_vectory_field_hsv(x,y,u,v):
+    '''Displays a vector field using an HSV image '''
 
+    u = np.array(u).reshape(x.shape)
+    v = np.array(v).reshape(x.shape)
+    nan_ind = np.isnan(u) * np.isnan(v)
+    u[nan_ind] = 0
+    v[nan_ind] = 0
+    tmp_img = np.ones((x.shape + (3,)))
+    tmp_img[:,:,1] = np.sqrt(u**2 + v**2)
+    print np.min(tmp_img[:,:,1])
+    tmp_img[:,:,1] -= np.min(tmp_img[:,:,1])
+    print np.max(tmp_img[:,:,1])
+    tmp_img[:,:,1] /= np.max(tmp_img[:,:,1])
+    tmp_img[:,:,0] = np.arctan2(u,v)
+    print np.min(tmp_img[:,:,0])
+    tmp_img[:,:,0] -= np.min(tmp_img[:,:,0])
+    print np.max(tmp_img[:,:,0])
+    tmp_img[:,:,0] /= np.max(tmp_img[:,:,0])
+    tmp_img[nan_ind,2] = 0
+    
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.imshow(mc.hsv_to_rgb(tmp_img),interpolation='nearest')
+    
 def remove_track_comp(comp_key,conn):
     '''Completely removes a tracking computation'''
     
