@@ -132,7 +132,8 @@ class Series_wrapper:
         if the frame does not exist return None'''
         try:
             print self.base_name%j
-            im = PIL.Image.open(self.base_name%j)
+            # added extra +1 to cope with mm starting naming at 1, not the god-given 0
+            im = PIL.Image.open(self.base_name%(j+1))
         except IOError:
             print "didn't find the file"
             return None
