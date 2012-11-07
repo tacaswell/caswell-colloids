@@ -32,6 +32,23 @@ import plots
 from general import ff, fd
 import static_calc as lsc
 
+
+def tracks_time_overlap(A,B,t_buf = 0):
+    """Returns if the tracks overlap in time"""
+    if A.start_frame == B.start_frame:
+        return True
+    if A.start_frame < B.start_frame:
+        first = A
+        second = B
+    else:
+        second = A
+        first = B
+
+    if first.start_frame + len(first) + t_buf > second.start_frame:
+        return True
+    
+    return False
+    
 class track:
     def __init__(self,start_frame,positions = None):
         if positions is None:
